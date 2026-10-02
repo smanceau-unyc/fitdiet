@@ -29,7 +29,7 @@ FD.nutrition = (function () {
 
   /** Copie figée des valeurs d'un aliment : l'entrée reste lisible même si l'aliment disparaît. */
   function snapshot(f) {
-    const keys = ['id', 'base', 'brand', 'state', 'basis', 'kcal', 'p', 'g', 'l', 'fib', 'sug', 'salt', 'unitG', 'unitLabel', 'portionG', 'source', 'barcode', 'variable', 'alcohol', 'cat'];
+    const keys = ['id', 'base', 'brand', 'state', 'basis', 'kcal', 'p', 'g', 'l', 'fib', 'sug', 'salt', 'unitG', 'unitLabel', 'portionG', 'portionLabel', 'source', 'barcode', 'variable', 'alcohol', 'cat'];
     const o = {};
     keys.forEach((k) => { if (f[k] !== undefined) o[k] = f[k]; });
     return o;

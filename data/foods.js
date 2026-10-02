@@ -65,21 +65,21 @@ window.FD_FOODS = [
   { id: 'tofu', base: 'Tofu nature ferme', state: null, cat: 'autres', basis: '100g', kcal: 130, p: 13, g: 1.5, l: 7.5, fib: 1, sug: 0.5, salt: 0, variable: true, price: 'moyen' },
 
   // --- Légumes ---
-  { id: 'legumes-mix', base: 'Légumes (mélange)', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 35, p: 1.8, g: 5, l: 0.3, fib: 3, sug: 3, salt: 0.05, variable: true, price: 'eco' },
-  { id: 'brocoli-cuit', base: 'Brocoli', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 30, p: 2.5, g: 3, l: 0.4, fib: 2.6, sug: 1.5, salt: 0.05, price: 'eco' },
-  { id: 'haricots-verts', base: 'Haricots verts', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 30, p: 1.8, g: 3.8, l: 0.2, fib: 3.2, sug: 1.5, salt: 0.05, price: 'eco' },
-  { id: 'courgette-cuite', base: 'Courgette', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 18, p: 1, g: 2.3, l: 0.2, fib: 1.2, sug: 1.8, salt: 0, price: 'eco' },
-  { id: 'epinards-cuits', base: 'Épinards', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 24, p: 3, g: 1.3, l: 0.5, fib: 2.5, sug: 0.4, salt: 0.15, price: 'eco' },
+  { id: 'legumes-mix', portionG: 150, portionLabel: 'assiette',  base: 'Légumes (mélange)', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 35, p: 1.8, g: 5, l: 0.3, fib: 3, sug: 3, salt: 0.05, variable: true, price: 'eco' },
+  { id: 'brocoli-cuit', portionG: 150, portionLabel: 'portion',  base: 'Brocoli', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 30, p: 2.5, g: 3, l: 0.4, fib: 2.6, sug: 1.5, salt: 0.05, price: 'eco' },
+  { id: 'haricots-verts', portionG: 150, portionLabel: 'portion',  base: 'Haricots verts', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 30, p: 1.8, g: 3.8, l: 0.2, fib: 3.2, sug: 1.5, salt: 0.05, price: 'eco' },
+  { id: 'courgette-cuite', portionG: 150, portionLabel: 'portion',  base: 'Courgette', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 18, p: 1, g: 2.3, l: 0.2, fib: 1.2, sug: 1.8, salt: 0, price: 'eco' },
+  { id: 'epinards-cuits', portionG: 150, portionLabel: 'portion',  base: 'Épinards', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 24, p: 3, g: 1.3, l: 0.5, fib: 2.5, sug: 0.4, salt: 0.15, price: 'eco' },
   { id: 'tomate', base: 'Tomate', state: 'cru', cat: 'legumes', basis: '100g', kcal: 19, p: 0.9, g: 3, l: 0.3, fib: 1.2, sug: 2.6, salt: 0, unitG: 120, unitLabel: 'tomate', price: 'eco' },
   { id: 'carotte', base: 'Carotte', state: 'cru', cat: 'legumes', basis: '100g', kcal: 36, p: 0.8, g: 7.5, l: 0.3, fib: 2.7, sug: 5, salt: 0.1, unitG: 100, unitLabel: 'carotte', price: 'eco' },
-  { id: 'salade', base: 'Salade verte', state: 'cru', cat: 'legumes', basis: '100g', kcal: 15, p: 1.2, g: 1.5, l: 0.2, fib: 1.3, sug: 1, salt: 0, price: 'eco' },
+  { id: 'salade', portionG: 30, portionLabel: 'poignée',  base: 'Salade verte', state: 'cru', cat: 'legumes', basis: '100g', kcal: 15, p: 1.2, g: 1.5, l: 0.2, fib: 1.3, sug: 1, salt: 0, price: 'eco' },
 
   // --- Fruits ---
   { id: 'banane', base: 'Banane', state: null, cat: 'fruits', basis: '100g', kcal: 90, p: 1.1, g: 20, l: 0.3, fib: 2.7, sug: 15, salt: 0, unitG: 120, unitLabel: 'banane (sans peau)', price: 'eco' },
   { id: 'pomme', base: 'Pomme', state: null, cat: 'fruits', basis: '100g', kcal: 53, p: 0.3, g: 11.5, l: 0.2, fib: 2.4, sug: 10, salt: 0, unitG: 150, unitLabel: 'pomme', price: 'eco' },
   { id: 'orange', base: 'Orange', state: null, cat: 'fruits', basis: '100g', kcal: 47, p: 0.9, g: 9, l: 0.2, fib: 2.2, sug: 8.5, salt: 0, unitG: 150, unitLabel: 'orange (sans peau)', price: 'eco' },
   { id: 'kiwi', base: 'Kiwi', state: null, cat: 'fruits', basis: '100g', kcal: 60, p: 1.1, g: 11, l: 0.6, fib: 3, sug: 9, salt: 0, unitG: 75, unitLabel: 'kiwi', price: 'eco' },
-  { id: 'fruits-rouges', base: 'Fruits rouges (mélange)', state: null, cat: 'fruits', basis: '100g', kcal: 45, p: 1, g: 8, l: 0.4, fib: 4, sug: 6, salt: 0, variable: true, price: 'moyen' },
+  { id: 'fruits-rouges', portionG: 125, portionLabel: 'bol',  base: 'Fruits rouges (mélange)', state: null, cat: 'fruits', basis: '100g', kcal: 45, p: 1, g: 8, l: 0.4, fib: 4, sug: 6, salt: 0, variable: true, price: 'moyen' },
 
   // --- Matières grasses, oléagineux, épicerie ---
   { id: 'huile-olive', base: "Huile d'olive", state: null, cat: 'epicerie', basis: '100g', kcal: 900, p: 0, g: 0, l: 100, fib: 0, sug: 0, salt: 0, price: 'moyen' },
@@ -95,13 +95,45 @@ window.FD_FOODS = [
   { id: 'vin-rouge', base: 'Vin rouge', state: null, cat: 'boissons', basis: '100ml', kcal: 85, p: 0.1, g: 2.6, l: 0, fib: 0, sug: 0.6, salt: 0, portionG: 125, alcohol: true, variable: true, price: 'moyen' },  // --- Ajouts livraison 2 (recettes) ---
   { id: 'oignon', base: 'Oignon', state: 'cru', cat: 'legumes', basis: '100g', kcal: 40, p: 1.2, g: 7.5, l: 0.2, fib: 1.8, sug: 5, salt: 0, unitG: 100, unitLabel: 'oignon', price: 'eco' },
   { id: 'poivron', base: 'Poivron', state: 'cru', cat: 'legumes', basis: '100g', kcal: 30, p: 1, g: 5, l: 0.3, fib: 1.8, sug: 4, salt: 0, unitG: 150, unitLabel: 'poivron', price: 'eco' },
-  { id: 'champignons', base: 'Champignons de Paris', state: 'cru', cat: 'legumes', basis: '100g', kcal: 25, p: 3, g: 0.5, l: 0.3, fib: 1.5, sug: 0.2, salt: 0, price: 'eco' },
+  { id: 'champignons', portionG: 100, portionLabel: 'portion',  base: 'Champignons de Paris', state: 'cru', cat: 'legumes', basis: '100g', kcal: 25, p: 3, g: 0.5, l: 0.3, fib: 1.5, sug: 0.2, salt: 0, price: 'eco' },
   { id: 'coulis-tomate', base: 'Coulis de tomate', state: null, cat: 'conserves', basis: '100g', kcal: 35, p: 1.5, g: 5.5, l: 0.2, fib: 1.5, sug: 4.5, salt: 0.5, variable: true, price: 'eco' },
   { id: 'haricots-rouges', base: 'Haricots rouges égouttés', state: null, cat: 'conserves', basis: '100g', kcal: 115, p: 8, g: 14, l: 0.5, fib: 7, sug: 0.5, salt: 0.6, price: 'eco' },
   { id: 'parmesan', base: 'Parmesan', state: null, cat: 'laitiers', basis: '100g', kcal: 390, p: 33, g: 0, l: 28, fib: 0, sug: 0, salt: 1.6, price: 'premium' },
   { id: 'citron', base: 'Citron', state: null, cat: 'fruits', basis: '100g', kcal: 30, p: 0.8, g: 3, l: 0.3, fib: 2, sug: 2.5, salt: 0, unitG: 60, unitLabel: 'citron (jus)', price: 'eco' },
   { id: 'tortilla', base: 'Tortilla de blé', state: null, cat: 'feculents', basis: '100g', kcal: 300, p: 8, g: 50, l: 7, fib: 3, sug: 3, salt: 1.2, unitG: 60, unitLabel: 'tortilla', variable: true, price: 'moyen' },
-  { id: 'sauce-soja', base: 'Sauce soja', state: null, cat: 'epicerie', basis: '100ml', kcal: 60, p: 8, g: 5, l: 0, fib: 0, sug: 1, salt: 14, variable: true, price: 'moyen' }
+  { id: 'sauce-soja', base: 'Sauce soja', state: null, cat: 'epicerie', basis: '100ml', kcal: 60, p: 8, g: 5, l: 0, fib: 0, sug: 1, salt: 14, variable: true, price: 'moyen' },
+  // --- Fruits et légumes à l'unité (livraison 3.1) : poids moyen de la partie mangée ---
+  { id: 'poire', base: 'Poire', state: null, cat: 'fruits', basis: '100g', kcal: 55, p: 0.4, g: 12, l: 0.1, fib: 3, sug: 10, salt: 0, unitG: 160, unitLabel: 'poire', price: 'eco' },
+  { id: 'clementine', base: 'Clémentine', state: null, cat: 'fruits', basis: '100g', kcal: 47, p: 0.8, g: 10, l: 0.2, fib: 1.7, sug: 9, salt: 0, unitG: 55, unitLabel: 'clémentine', price: 'eco' },
+  { id: 'fraise', base: 'Fraises', state: null, cat: 'fruits', basis: '100g', kcal: 33, p: 0.7, g: 6.5, l: 0.3, fib: 2, sug: 5, salt: 0, unitG: 15, unitLabel: 'fraise', portionG: 125, portionLabel: 'bol', price: 'moyen' },
+  { id: 'raisin', base: 'Raisin', state: null, cat: 'fruits', basis: '100g', kcal: 70, p: 0.6, g: 16, l: 0.2, fib: 1, sug: 16, salt: 0, portionG: 125, portionLabel: 'grappe', price: 'moyen' },
+  { id: 'peche', base: 'Pêche ou nectarine', state: null, cat: 'fruits', basis: '100g', kcal: 40, p: 0.9, g: 8.5, l: 0.2, fib: 1.8, sug: 8, salt: 0, unitG: 130, unitLabel: 'pêche', price: 'moyen' },
+  { id: 'abricot', base: 'Abricot', state: null, cat: 'fruits', basis: '100g', kcal: 45, p: 0.9, g: 9, l: 0.2, fib: 2, sug: 8, salt: 0, unitG: 40, unitLabel: 'abricot', price: 'moyen' },
+  { id: 'prune', base: 'Prune', state: null, cat: 'fruits', basis: '100g', kcal: 45, p: 0.7, g: 10, l: 0.2, fib: 1.5, sug: 9, salt: 0, unitG: 35, unitLabel: 'prune', price: 'moyen' },
+  { id: 'ananas', base: 'Ananas', state: null, cat: 'fruits', basis: '100g', kcal: 50, p: 0.5, g: 11.5, l: 0.1, fib: 1.3, sug: 10, salt: 0, portionG: 80, portionLabel: 'tranche', price: 'moyen' },
+  { id: 'melon', base: 'Melon', state: null, cat: 'fruits', basis: '100g', kcal: 35, p: 0.8, g: 7.5, l: 0.2, fib: 1, sug: 7, salt: 0, portionG: 150, portionLabel: 'tranche', price: 'moyen' },
+  { id: 'pasteque', base: 'Pastèque', state: null, cat: 'fruits', basis: '100g', kcal: 30, p: 0.6, g: 7, l: 0.2, fib: 0.4, sug: 6, salt: 0, portionG: 250, portionLabel: 'tranche', price: 'eco' },
+  { id: 'mangue', base: 'Mangue', state: null, cat: 'fruits', basis: '100g', kcal: 65, p: 0.8, g: 14, l: 0.4, fib: 1.6, sug: 13, salt: 0, unitG: 250, unitLabel: 'mangue (chair)', price: 'moyen' },
+  { id: 'avocat', base: 'Avocat', state: null, cat: 'fruits', basis: '100g', kcal: 205, p: 1.6, g: 2, l: 20.5, fib: 4.6, sug: 0.5, salt: 0, unitG: 140, unitLabel: 'avocat (chair)', price: 'moyen' },
+  { id: 'myrtilles', base: 'Myrtilles', state: null, cat: 'fruits', basis: '100g', kcal: 57, p: 0.7, g: 12, l: 0.3, fib: 2.4, sug: 10, salt: 0, portionG: 125, portionLabel: 'barquette', price: 'premium' },
+  { id: 'cerises', base: 'Cerises', state: null, cat: 'fruits', basis: '100g', kcal: 60, p: 1, g: 13, l: 0.3, fib: 1.6, sug: 12, salt: 0, portionG: 150, portionLabel: 'bol', price: 'premium' },
+  { id: 'pamplemousse', base: 'Pamplemousse', state: null, cat: 'fruits', basis: '100g', kcal: 40, p: 0.7, g: 8, l: 0.1, fib: 1.4, sug: 7, salt: 0, unitG: 250, unitLabel: 'pamplemousse (chair)', price: 'eco' },
+  { id: 'figue', base: 'Figue fraîche', state: null, cat: 'fruits', basis: '100g', kcal: 70, p: 0.8, g: 16, l: 0.3, fib: 2.5, sug: 15, salt: 0, unitG: 50, unitLabel: 'figue', price: 'premium' },
+  { id: 'datte', base: 'Datte séchée', state: null, cat: 'fruits', basis: '100g', kcal: 280, p: 2.5, g: 66, l: 0.4, fib: 7, sug: 63, salt: 0, unitG: 8, unitLabel: 'datte', price: 'moyen' },
+  { id: 'compote', base: 'Compote sans sucres ajoutés', state: null, cat: 'fruits', basis: '100g', kcal: 50, p: 0.3, g: 11, l: 0.1, fib: 1.5, sug: 10, salt: 0, unitG: 100, unitLabel: 'pot ou gourde', variable: true, price: 'eco' },
+  { id: 'tomate-cerise', base: 'Tomates cerises', state: 'cru', cat: 'legumes', basis: '100g', kcal: 20, p: 0.9, g: 3, l: 0.3, fib: 1.3, sug: 2.8, salt: 0, unitG: 15, unitLabel: 'tomate cerise', portionG: 100, portionLabel: 'poignée', price: 'moyen' },
+  { id: 'concombre', base: 'Concombre', state: 'cru', cat: 'legumes', basis: '100g', kcal: 13, p: 0.6, g: 2, l: 0.1, fib: 0.7, sug: 1.7, salt: 0, unitG: 300, unitLabel: 'concombre', price: 'eco' },
+  { id: 'courgette-crue', base: 'Courgette', state: 'cru', cat: 'legumes', basis: '100g', kcal: 16, p: 1.2, g: 2, l: 0.3, fib: 1.1, sug: 1.7, salt: 0, unitG: 200, unitLabel: 'courgette', price: 'eco' },
+  { id: 'aubergine', base: 'Aubergine', state: 'cru', cat: 'legumes', basis: '100g', kcal: 22, p: 1, g: 3, l: 0.2, fib: 2.5, sug: 2.5, salt: 0, unitG: 250, unitLabel: 'aubergine', price: 'eco' },
+  { id: 'brocoli-cru', base: 'Brocoli', state: 'cru', cat: 'legumes', basis: '100g', kcal: 33, p: 3, g: 3.5, l: 0.4, fib: 2.6, sug: 1.5, salt: 0, unitG: 400, unitLabel: 'tête de brocoli', portionG: 150, portionLabel: 'portion', price: 'eco' },
+  { id: 'chou-fleur', base: 'Chou-fleur', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 25, p: 2, g: 2.5, l: 0.3, fib: 2.4, sug: 1.5, salt: 0, portionG: 150, portionLabel: 'portion', price: 'eco' },
+  { id: 'poireau', base: 'Poireau', state: 'cru', cat: 'legumes', basis: '100g', kcal: 30, p: 1.5, g: 4.5, l: 0.3, fib: 2.5, sug: 2.5, salt: 0, unitG: 150, unitLabel: 'poireau', price: 'eco' },
+  { id: 'endive', base: 'Endive', state: 'cru', cat: 'legumes', basis: '100g', kcal: 17, p: 1, g: 2.5, l: 0.1, fib: 1, sug: 1, salt: 0, unitG: 120, unitLabel: 'endive', price: 'eco' },
+  { id: 'betterave', base: 'Betterave rouge', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 45, p: 1.6, g: 8.5, l: 0.1, fib: 2.5, sug: 8, salt: 0.1, unitG: 100, unitLabel: 'betterave', price: 'eco' },
+  { id: 'radis', base: 'Radis', state: 'cru', cat: 'legumes', basis: '100g', kcal: 15, p: 0.8, g: 2, l: 0.1, fib: 1.3, sug: 1.9, salt: 0, unitG: 10, unitLabel: 'radis', price: 'eco' },
+  { id: 'ail', base: 'Ail', state: 'cru', cat: 'legumes', basis: '100g', kcal: 130, p: 6, g: 25, l: 0.5, fib: 2, sug: 1, salt: 0, unitG: 5, unitLabel: 'gousse', price: 'moyen' },
+  { id: 'petits-pois', base: 'Petits pois', state: 'cuit', cat: 'legumes', basis: '100g', kcal: 80, p: 5.5, g: 11, l: 0.4, fib: 6, sug: 4, salt: 0, portionG: 150, portionLabel: 'portion', price: 'eco' },
+  { id: 'mais', base: 'Maïs doux égoutté', state: null, cat: 'conserves', basis: '100g', kcal: 105, p: 3, g: 18, l: 1.8, fib: 3, sug: 5, salt: 0.5, portionG: 140, portionLabel: 'petite boîte', price: 'eco' }
 ];
 
 /**

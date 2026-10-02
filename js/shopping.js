@@ -30,7 +30,7 @@ FD.shopping = (function () {
       items[key].grams += grams;
       items[key].uses++;
       if (raw) { items[key].cooked = true; items[key].cookedGrams += FD.foods.toBaseQty(FD.foods.byId(state, ing.foodId), ing.qty, ing.unit); }
-      if (ing.unit === 'unite') items[key].units += ing.qty;
+      if (FD.foods.isPiece(ing.unit)) items[key].units += ing.qty;
     })));
     const groups = {};
     Object.values(items).forEach((it) => {

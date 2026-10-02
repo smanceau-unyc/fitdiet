@@ -152,7 +152,7 @@
     let sub = '';
     if (e.free) sub = '<span class="small muted">' + esc(N.FREE_KINDS[e.kind] || 'Saisie libre') + ' · estimation</span>';
     else {
-      sub = '<span class="small muted">' + esc(F.qtyLabel(f, e.qty, e.unit)) + (e.unit === 'unite' || e.unit === 'portion' ? ' (' + U.num(v.grams) + (f.basis === '100ml' ? ' ml' : ' g') + ')' : '') + ' · ' + esc((F.SOURCES[f.source] || F.SOURCES.demo).short) + '</span>';
+      sub = '<span class="small muted">' + esc(F.qtyLabel(f, e.qty, e.unit)) + (F.isPiece(e.unit) || e.unit === 'portion' ? ' (' + U.num(v.grams) + (f.basis === '100ml' ? ' ml' : ' g') + ')' : '') + ' · ' + esc((F.SOURCES[f.source] || F.SOURCES.demo).short) + '</span>';
       if (f.variable) sub += '<span class="small" style="color:var(--warn)">Valeur indicative — vérifier l\'étiquette du produit</span>';
       if (f.alcohol) sub += '<span class="small muted">Calories incluant l\'alcool (non couvert par les macros)</span>';
     }
@@ -188,7 +188,7 @@
     const f = ui.variantId ? variants.find((v) => v.id === ui.variantId) : null;
     let html = '<div class="card tight" style="background:var(--surface-2)"><div class="between"><h3>' + esc(ui.pick.name) + '</h3><button class="btn sm ghost" data-action="cancel-pick">Fermer</button></div>';
     if (variants.length > 1) {
-      html += '<div class="stack"><span>' + esc(U.num(U.parseNum(ui.qty) || 100)) + ' ' + esc(ui.unit) + ' cru ou cuit ?</span><div class="seg" role="group" aria-label="État de l\'aliment">' +
+      html += '<div class="stack"><span>' + (ui.unit === 'g' ? esc(U.num(U.parseNum(ui.qty) || 100)) + ' g cru' : 'Cru') + ' ou cuit ?</span><div class="seg" role="group" aria-label="État de l\'aliment">' +
         variants.map((v) => '<button type="button" data-action="variant" data-id="' + esc(v.id) + '" aria-pressed="' + (ui.variantId === v.id) + '">' + esc(v.state || 'standard') + '</button>').join('') + '</div></div>';
     }
     const unitsSrc = f || variants[0];
@@ -197,7 +197,7 @@
       '<label>Repas<select data-change="pick-meal">' + opts(N.MEALS.map((m) => [m.id, m.label]), ui.meal) + '</select></label></div>';
     if (f) {
       const v = F.compute(f, U.parseNum(ui.qty) || 0, ui.unit);
-      html += v ? '<p class="small">≈ ' + U.num(v.kcal) + ' kcal · P ' + U.num(v.p, 1) + ' g · G ' + U.num(v.g, 1) + ' g · L ' + U.num(v.l, 1) + ' g · fibres ' + U.num(v.fib, 1) + ' g</p>' : '<p class="small" style="color:var(--warn)">Cette unité n\'est pas disponible pour cet aliment.</p>';
+      html += v ? '<p class="small">' + (ui.unit !== 'g' && ui.unit !== 'ml' ? '≈ ' + U.num(v.grams) + (f.basis === '100ml' ? ' ml' : ' g') + ' · ' : '') + '≈ ' + U.num(v.kcal) + ' kcal · P ' + U.num(v.p, 1) + ' g · G ' + U.num(v.g, 1) + ' g · L ' + U.num(v.l, 1) + ' g · fibres ' + U.num(v.fib, 1) + ' g</p>' : '<p class="small" style="color:var(--warn)">Cette unité n\'est pas disponible pour cet aliment.</p>';
       html += '<p class="small muted">' + esc(F.sourceLabel(f)) + ' · valeurs pour ' + (f.basis === '100ml' ? '100 ml' : '100 g') + (f.variable ? ' · valeur indicative — vérifier l\'étiquette du produit' : '') + '</p>';
     } else html += '<p class="small" style="color:var(--warn)">Précise l\'état de l\'aliment : les valeurs crues et cuites sont très différentes.</p>';
     html += '<div><button class="btn primary" data-action="add-food"' + (f ? '' : ' disabled') + '>Ajouter au journal</button></div></div>';
@@ -910,7 +910,7 @@
     ui.pick = group;
     ui.variantId = group.variants.length === 1 ? group.variants[0].id : null;
     const f = group.variants[0];
-    if (f.unitG && !f.state) { ui.unit = 'unite'; ui.qty = '1'; } else { ui.unit = 'g'; ui.qty = '100'; }
+    const du = F.defaultUnit(f); ui.unit = du.unit; ui.qty = du.qty;
   }
 
   view.addEventListener('click', (ev) => {
@@ -923,7 +923,12 @@
       case 'jtoday': ui.jDate = today(); render(); break;
       case 'tab': ui.tab = el.dataset.tab; ui.pick = null; render(); break;
       case 'pick': pickFood(ui.results[+el.dataset.idx]); render(); focusSoon('#pick-qty'); break;
-      case 'variant': ui.variantId = el.dataset.id; render(); break;
+      case 'variant': {
+        ui.variantId = el.dataset.id;
+        const fv = ui.pick && ui.pick.variants.find((x) => x.id === ui.variantId);
+        if (fv && F.toBaseQty(fv, 1, ui.unit) === null) { const du = F.defaultUnit(fv); ui.unit = du.unit; ui.qty = du.qty; }
+        render(); break;
+      }
       case 'cancel-pick': ui.pick = null; ui.variantId = null; render(); break;
       case 'add-food': {
         const f = ui.pick && ui.pick.variants.find((v) => v.id === ui.variantId);
@@ -1013,7 +1018,7 @@
         if (!f) break;
         const role = ['viandes', 'poissons'].includes(f.cat) || f.p >= 10 ? 'prot' : f.cat === 'feculents' || f.cat === 'fruits' ? 'carb' : f.l >= 50 ? 'fat' : f.cat === 'legumes' ? 'veg' : 'other';
         syncEditorFields();
-        ui.editor.ingredients.push({ foodId: f.id, qty: f.unitG && !f.state ? 1 : 100, unit: f.unitG && !f.state ? 'unite' : f.basis === '100ml' ? 'ml' : 'g', role });
+        { const du = F.defaultUnit(f); ui.editor.ingredients.push({ foodId: f.id, qty: +du.qty, unit: du.unit, role }); }
         if (f.source === 'off' && !S.customFoods.some((x) => x.id === f.id)) S.customFoods.push(f);
         ui.edQuery = ''; render(); focusSoon('#ed-q');
         break;

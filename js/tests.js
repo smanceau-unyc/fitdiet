@@ -154,6 +154,17 @@ FD.tests = (function () {
     }
     ,
     {
+      name: 'Fruits et légumes à la pièce — 1 banane par défaut, calibres et poignée convertis en grammes',
+      run: () => {
+        const s = FD.storage.defaultState();
+        const ban = FD.foods.byId(s, 'banane'), sal = FD.foods.byId(s, 'salade'), tom = FD.foods.byId(s, 'tomate');
+        const du = FD.foods.defaultUnit(ban);
+        const ok = du.unit === 'unite' && du.qty === '1' && FD.foods.toBaseQty(ban, 1, 'unite_g') === 156 &&
+          FD.foods.toBaseQty(sal, 1, 'portion') === 30 && FD.foods.defaultUnit(tom).unit === 'unite' && FD.foods.defaultUnit(sal).unit === 'portion';
+        return { ok, title: '1 grosse banane ≈ ' + FD.foods.toBaseQty(ban, 1, 'unite_g') + ' g' };
+      }
+    },
+    {
       name: 'Prix — un prix saisi remplace le prix indicatif ; coût proratisé au poids',
       run: () => {
         const s = FD.storage.defaultState();

@@ -78,13 +78,29 @@ FD.foods = (function () {
       .slice(0, limit || 12);
   }
 
-  /** Unités possibles pour un aliment. */
+  /** Calibres pour les fruits et légumes vendus à la pièce (facteur appliqué au poids moyen). */
+  const SIZES = { unite_p: { factor: 0.75, label: 'petit calibre' }, unite: { factor: 1, label: 'calibre moyen' }, unite_g: { factor: 1.3, label: 'gros calibre' } };
+  const hasSizes = (f) => !!f.unitG && (f.cat === 'fruits' || f.cat === 'legumes') && f.unitG >= 30;
+
+  /** Unités possibles pour un aliment, avec l'équivalent en grammes pour les mesures ménagères. */
   function unitsFor(f) {
-    const u = [{ id: 'g', label: 'g' }, { id: 'kg', label: 'kg' }];
+    const u = [];
+    const w = f.basis === '100ml' ? ' ml' : ' g';
+    if (f.unitG) {
+      if (hasSizes(f)) Object.keys(SIZES).forEach((k) => u.push({ id: k, label: (f.unitLabel || 'unité') + ' — ' + SIZES[k].label + ' (≈ ' + Math.round(f.unitG * SIZES[k].factor) + w + ')' }));
+      else u.push({ id: 'unite', label: (f.unitLabel || 'unité') + ' (≈ ' + f.unitG + w + ')' });
+    }
+    if (f.portionG) u.push({ id: 'portion', label: (f.portionLabel || 'portion') + ' (≈ ' + f.portionG + w + ')' });
+    u.push({ id: 'g', label: 'g' }, { id: 'kg', label: 'kg' });
     if (f.basis === '100ml') u.push({ id: 'ml', label: 'ml' });
-    if (f.unitG) u.push({ id: 'unite', label: f.unitLabel || 'unité' });
-    if (f.portionG) u.push({ id: 'portion', label: 'portion (' + f.portionG + (f.basis === '100ml' ? ' ml' : ' g') + ')' });
     return u;
+  }
+
+  /** Unité proposée par défaut : la pièce ou la mesure ménagère quand elle existe. */
+  function defaultUnit(f) {
+    if (f.unitG && (f.cat === 'fruits' || f.cat === 'legumes' || f.id === 'oeuf' || f.unitLabel)) return { unit: 'unite', qty: '1' };
+    if (f.portionG && (f.cat === 'fruits' || f.cat === 'legumes')) return { unit: 'portion', qty: '1' };
+    return { unit: f.basis === '100ml' ? 'ml' : 'g', qty: '100' };
   }
 
   /** Convertit une quantité saisie en grammes (ou ml) de référence. Renvoie null si impossible. */
@@ -93,7 +109,7 @@ FD.foods = (function () {
       case 'g': return qty;
       case 'kg': return qty * 1000;
       case 'ml': return qty; // pour un aliment en 100 ml : même base
-      case 'unite': return f.unitG ? qty * f.unitG : null;
+      case 'unite': case 'unite_p': case 'unite_g': return f.unitG ? qty * f.unitG * SIZES[unit].factor : null;
       case 'portion': return f.portionG ? qty * f.portionG : null;
       default: return null;
     }
@@ -114,10 +130,15 @@ FD.foods = (function () {
   /** Libellé lisible d'une quantité : "150 g", "3 × œuf moyen", "1 × portion (30 g)". */
   function qtyLabel(f, qty, unit) {
     const q = U.num(qty, qty % 1 ? 1 : 0);
-    if (unit === 'unite') return q + ' × ' + ((f && f.unitLabel) || 'unité');
-    if (unit === 'portion') return q + ' × portion';
+    if (unit === 'unite' || unit === 'unite_p' || unit === 'unite_g') {
+      const size = f && hasSizes(f) && unit !== 'unite' ? ', ' + SIZES[unit].label : '';
+      return q + ' × ' + ((f && f.unitLabel) || 'unité') + size;
+    }
+    if (unit === 'portion') return q + ' × ' + ((f && f.portionLabel) || 'portion');
     return q + ' ' + unit;
   }
 
-  return { SOURCES, CATS, all, byId, displayName, sourceLabel, search, unitsFor, toBaseQty, compute, qtyLabel };
+  const isPiece = (unit) => unit === 'unite' || unit === 'unite_p' || unit === 'unite_g';
+
+  return { SOURCES, CATS, all, byId, displayName, sourceLabel, search, unitsFor, defaultUnit, toBaseQty, compute, qtyLabel, isPiece };
 })();

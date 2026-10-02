@@ -17,6 +17,7 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Import Ciqual** (V2) : CSV de la table officielle, liaison des aliments de démo (suggestions + choix manuel).
 - **Scanner code-barres** (V3) : caméra en direct (BarcodeDetector natif ou ZXing embarqué), photo du code, ou saisie des chiffres ; recherche Open Food Facts, confirmation avant ajout ; produits déjà scannés retrouvés hors ligne.
 - **Photos de progression** (V3) : face / profil / dos, datées, stockées uniquement dans le navigateur (IndexedDB), comparaison dernière / 1 semaine / 1 mois / 3 mois, export/import séparé.
+- **Fruits et légumes à la pièce** (V3.1) : 1 banane, 1 tomate, 1 poignée de salade… avec calibre petit / moyen / gros et l'équivalent en grammes affiché ; 30 fruits et légumes ajoutés.
 - **Prix** (V3) : prix indicatifs modifiables, coût estimé par jour, par plan et pour la liste de courses, budget hebdomadaire du profil pris en compte par le générateur (sans sacrifier les protéines).
 - **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 18 scénarios.
 

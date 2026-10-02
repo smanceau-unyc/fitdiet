@@ -54,7 +54,7 @@ FD.recipes = (function () {
 
   /** Arrondi d'une quantité selon l'unité (pas de fausse précision). */
   function roundQty(qty, unit) {
-    if (unit === 'unite') return Math.max(1, Math.round(qty));
+    if (FD.foods.isPiece(unit)) return Math.max(1, Math.round(qty));
     if (unit === 'portion') return Math.max(0.5, Math.round(qty * 2) / 2);
     const step = qty < 30 ? 5 : qty < 200 ? 10 : 25;
     return Math.max(step, Math.round(qty / step) * step);
