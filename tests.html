@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FitDiet Coach — tests du moteur</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main class="main"><div class="container">
+  <div class="page-head"><div><h1>Tests du moteur</h1><p class="sub">Scénarios déterministes exécutés sur des données synthétiques (date de référence fixe).</p></div><a class="btn" href="index.html">Retour à l'app</a></div>
+  <div id="out" class="stack"></div>
+</div></main>
+<script src="js/utils.js"></script>
+<script src="data/foods.js"></script>
+<script src="data/recipes.js"></script>
+<script src="data/prices.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/calculations.js"></script>
+<script src="js/foods.js"></script>
+<script src="js/nutrition.js"></script>
+<script src="js/tracking.js"></script>
+<script src="js/trends.js"></script>
+<script src="js/adherence.js"></script>
+<script src="js/coachEngine.js"></script>
+<script src="js/decisionHistory.js"></script>
+<script src="js/recipes.js"></script>
+<script src="js/planner.js"></script>
+<script src="js/shopping.js"></script>
+<script src="js/prices.js"></script>
+<script src="js/photos.js"></script>
+<script src="js/tests.js"></script>
+<script>
+  const res = FD.tests.run();
+  const ok = res.filter((r) => r.ok).length;
+  document.getElementById('out').innerHTML =
+    '<div class="alert ' + (ok === res.length ? '' : 'danger') + '"><strong>' + ok + ' / ' + res.length + ' scénarios conformes</strong></div>' +
+    res.map((r) => '<div class="card tight"><div class="between"><h3>' + FD.utils.esc(r.name) + '</h3><span class="badge ' + (r.ok ? 'ok' : 'danger') + '">' + (r.ok ? 'Conforme' : 'Échec') + '</span></div>' +
+      '<p class="small muted">Décision : ' + FD.utils.esc(r.title || r.err) + '</p><p class="small">' + FD.utils.esc(r.recommend || '') + '</p></div>').join('');
+</script>
+</body>
+</html>
