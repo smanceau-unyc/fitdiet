@@ -105,7 +105,7 @@
       '<div class="row">' +
         '<section class="card" aria-label="Cible du jour"><div class="card-head"><h2>Cible</h2><span class="badge">' + esc(tg.type.label) + (d.session && d.session !== planned ? ' · modifiée' : '') + '</span></div>' +
           '<div class="inline" style="align-items:baseline"><span class="big-num accent">' + U.num(Math.round(tot.kcal)) + '</span><span class="muted">/ ' + U.kcal(tg.kcal) + ' kcal</span></div>' +
-          '<p>' + esc(status) + '</p>' + (function () { const r = (d.foods || []).length ? FD.planner.completeDay(S, iso, { top: 1 }) : null; return r && r.options.length && r.slots.length >= 2 ? '<p class="small">Idée pour finir la journée : <strong>' + esc(r.options[0].meals.map((m) => m.recipe.name).join(' + ')) + '</strong>.</p><a class="btn" href="#/journal">Voir les combinaisons</a>' : ''; })() +
+          '<p>' + esc(status) + '</p>' + (function () { let r = null; try { r = (d.foods || []).length && FD.planner.completeDay ? FD.planner.completeDay(S, iso, { top: 1 }) : null; } catch (e) { console.error(e); } return r && r.options.length && r.slots.length >= 2 ? '<p class="small">Idée pour finir la journée : <strong>' + esc(r.options[0].meals.map((m) => m.recipe.name).join(' + ')) + '</strong>.</p><a class="btn" href="#/journal">Voir les combinaisons</a>' : ''; })() +
           '<a class="btn primary" href="#/journal">Ajouter un repas</a></section>' +
         '<section class="card wide" aria-label="Macronutriments">' +
           meter('Protéines', tot.p, tg.p, 'g', 'p') + meter('Glucides', tot.g, tg.g, 'g') + meter('Lipides', tot.l, tg.l, 'g', 'l') + meter('Fibres', tot.fib, tg.fib, 'g', 'p') +
@@ -656,8 +656,9 @@
   function completeDayHTML(iso) {
     ui.cdShown = false;
     const d = S.days[iso];
-    if (!d || !(d.foods || []).length) return '';
-    const res = FD.planner.completeDay(S, iso);
+    if (!d || !(d.foods || []).length || !FD.planner.completeDay || !FD.recipeArt) return '';
+    let res;
+    try { res = FD.planner.completeDay(S, iso); } catch (e) { console.error(e); return ''; }
     ui.cd = res;
     if (res.slots.length < 2 || !res.options.length) return '';
     ui.cdShown = true;
@@ -674,6 +675,10 @@
 
   /** Bloc de suggestions « il te reste… » (journal et recettes). */
   function suggestionsHTML(iso) {
+    try { return suggestionsInner(iso); } catch (e) { console.error(e); return ''; }
+  }
+
+  function suggestionsInner(iso) {
     const tg = C.dayTarget(S, iso);
     const tot = T.dayTotals(S, iso);
     const nm = nextMealTarget(iso);
@@ -926,7 +931,16 @@
     if (FD.scanner && FD.scanner.isActive()) FD.scanner.stop();
     ui.route = currentRoute();
     const view = document.getElementById('view');
-    view.innerHTML = VIEWS[ui.route]();
+    try {
+      view.innerHTML = VIEWS[ui.route]();
+    } catch (e) {
+      console.error(e);
+      view.innerHTML = '<div class="container"><div class="alert danger"><strong>Cette page n\'a pas pu s\'afficher</strong>' +
+        'Cause probable : des fichiers de versions différentes (mise à jour incomplète ou ancien fichier gardé en cache par le navigateur). ' +
+        'Recharge la page en forçant (ordinateur : Cmd + Maj + R ; iPhone : fermer l\'onglet puis rouvrir), et vérifie que tous les fichiers du dossier ont bien été remplacés sur GitHub.' +
+        '<br><br><span class="small">Détail technique : ' + esc(e && e.message ? e.message : String(e)) + '</span></div></div>';
+      return;
+    }
     document.querySelectorAll('.nav a').forEach((a) => {
       if (a.getAttribute('href') === '#/' + ui.route) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
