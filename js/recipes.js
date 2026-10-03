@@ -61,7 +61,8 @@ FD.recipes = (function () {
       return Math.max(1, Math.round(qty));
     }
     if (unit === 'portion') return Math.max(0.5, Math.round(qty * 2) / 2);
-    const step = qty < 30 ? 5 : qty < 200 ? 10 : 25;
+    if (qty < 10) return Math.max(0.5, Math.round(qty * 2) / 2); // petites quantités (huile, miel…) : au demi-gramme
+    const step = qty < 30 ? 1 : qty < 100 ? 5 : qty < 300 ? 10 : 25;
     return Math.max(step, Math.round(qty / step) * step);
   }
 
@@ -103,7 +104,9 @@ FD.recipes = (function () {
     }
     const scaled = ings.map((i) => {
       const k = i.role === 'prot' ? a : i.role === 'carb' ? c : 1;
-      return { foodId: i.foodId, unit: i.unit, role: i.role, qty: roundQty(i.qty * k, i.unit, FD.foods.byId(state, i.foodId)) };
+      // les ingrédients non ajustés gardent leur quantité (au dixième), seuls protéines et féculents sont arrondis
+      const qty = k === 1 && !FD.foods.isPiece(i.unit) && i.unit !== 'portion' ? Math.round(i.qty * 10) / 10 : roundQty(i.qty * k, i.unit, FD.foods.byId(state, i.foodId));
+      return Object.assign({ foodId: i.foodId, unit: i.unit, role: i.role, qty }, i.note ? { note: i.note } : {});
     });
     const res = compute(state, { servings: 1 }, scaled);
     return { ingredients: scaled, totals: res.total, factors: { prot: a, carb: c }, variable: res.variable };

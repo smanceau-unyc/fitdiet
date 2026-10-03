@@ -87,9 +87,13 @@ FD.calc = (function () {
   /** Cible complète d'une journée donnée. */
   function dayTarget(state, iso) {
     const type = sessionFor(state, iso);
-    const kcal = type.kcal + (state.profile.kcalOffset || 0);
+    const p = state.profile;
+    const raw = type.kcal + (p.kcalOffset || 0);
+    // Le plancher et le plafond du profil encadrent toujours la cible du jour
+    const max = p.kcalMax > 0 ? p.kcalMax : Infinity, min = p.kcalMin > 0 ? Math.min(p.kcalMin, max) : 0;
+    const kcal = Math.min(max, Math.max(min, raw));
     const m = macrosFor(state, kcal, fatFor(state, type));
-    return Object.assign(m, { type, water: hydration(state.profile, type.cat !== 'repos') });
+    return Object.assign(m, { type, water: hydration(p, type.cat !== 'repos'), capped: kcal !== raw ? (kcal < raw ? 'max' : 'min') : null, rawKcal: raw });
   }
 
   /** Repère d'hydratation (pas une valeur médicale) : ~33 ml/kg + 0,5 L les jours d'entraînement. */

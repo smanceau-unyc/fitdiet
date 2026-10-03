@@ -22,7 +22,7 @@ FD.planner = (function () {
   };
 
   function defaultSettings(state) {
-    return { days: 7, mealsPerDay: Math.min(5, Math.max(3, state.profile.mealsPerDay || 4)), budget: 'moyen', fixed: { petitdej: 'r-skyr-bowl', diner: '' }, seed: 1 };
+    return { days: 7, mealsPerDay: Math.min(5, Math.max(3, state.profile.mealsPerDay || 4)), budget: 'moyen', fixed: { petitdej: 'r-skyr-bowl', diner: '' }, seed: 1, pool: 'all', batch: true };
   }
 
   function rng(seed) { let s = seed * 7919 % 233280 || 1; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
@@ -65,9 +65,11 @@ FD.planner = (function () {
       const c = FD.prices.mealCost(state, fit.ingredients).total;
       if (c > ctx.mealBudget) score += Math.min(0.35, (c - ctx.mealBudget) / ctx.mealBudget * 0.3);
     }
-    const time = (r.prep || 0) + (r.cook || 0);
+    // Temps par portion : un prep'meal de 45 min pour 4 repas ne coûte que ~11 min par repas
+    const time = ((r.prep || 0) + (r.cook || 0)) / Math.max(1, r.servings >= 3 ? r.servings : 1);
     const maxT = parseInt(state.profile.cookTime, 10) || 30;
-    if (time > maxT) score += Math.min(0.4, (time - maxT) / 60);
+    if (time > maxT) score += Math.min(0.15, (time - maxT) / 120);
+    if (ctx.prefer && r.source && r.source.collection === ctx.prefer) score -= 0.15;
     const pref = String(state.profile.preferred || '').split(/[,;]/).map((t) => U.norm(t).trim()).filter((t) => t.length >= 3);
     if (pref.some((t) => U.norm(r.name).includes(t))) score -= 0.12;
     if (slot.tag === 'pré-séance' && (r.tags || []).includes('pre-seance')) score -= 0.1;
@@ -76,35 +78,92 @@ FD.planner = (function () {
     return { recipe: r, fit, score };
   }
 
+  /** Recettes utilisables selon le choix « Recettes » du formulaire. */
+  function poolOf(state, pool) {
+    const all = FD.recipes.all(state).filter((r) => FD.recipes.recipeAllowed(state, r).ok);
+    if (!pool || pool === 'all' || pool.startsWith('prefer:')) return all;
+    if (pool === 'app') return all.filter((r) => !r.source || r.source.type === 'app');
+    if (pool === 'user') return all.filter((r) => r.source && r.source.type === 'user');
+    if (pool.startsWith('only:')) {
+      const c = pool.slice(5);
+      const only = all.filter((r) => r.source && r.source.collection === c);
+      // repas non couverts par la collection (ex. collation) : on complète avec les autres recettes
+      return only.concat(all.filter((r) => !(r.source && r.source.collection === c) && !['petitdej', 'dejeuner', 'diner'].some((m) => r.meals.includes(m) && only.some((o) => o.meals.includes(m)))));
+    }
+    return all;
+  }
+
+  /** Écart d'une journée complète à sa cible (calories, protéines, glucides, lipides). */
+  function dayError(tot, T) {
+    return (tot.kcal > T.kcal ? 1.6 : 1) * Math.abs(tot.kcal - T.kcal) / T.kcal + 1.5 * Math.max(0, T.p - tot.p) / T.p +
+      0.3 * Math.max(0, tot.p - T.p * 1.15) / T.p + 0.5 * Math.abs(tot.g - T.g) / Math.max(T.g, 1) + 0.7 * Math.abs(tot.l - T.l) / Math.max(T.l, 1);
+  }
+
   /** Génère un plan complet. */
   function generate(state, settings, startIso) {
     const s = Object.assign(defaultSettings(state), settings || {});
     const rand = rng(s.seed || 1);
     const wb = FD.prices ? FD.prices.weeklyBudget(state) : null;
-    const ctx = { uses: {}, basket: {}, budget: s.budget, rand, today: [], mealBudget: wb ? wb / 7 / s.mealsPerDay : null };
-    const recipes = FD.recipes.all(state).filter((r) => FD.recipes.recipeAllowed(state, r).ok);
+    const ctx = { uses: {}, basket: {}, budget: s.budget, rand, today: [], mealBudget: wb ? wb / 7 / s.mealsPerDay : null, prefer: s.pool && s.pool.startsWith('prefer:') ? s.pool.slice(7) : null };
+    const recipes = poolOf(state, s.pool);
+    const batch = {}; // repas → { recipe, left } : un prep'meal cuisiné une fois sert plusieurs jours
     const days = [];
     for (let d = 0; d < s.days; d++) {
       const iso = U.addDays(startIso, d);
       const st = slotTargets(state, iso, s.mealsPerDay);
       ctx.today = [];
-      const meals = st.slots.map((slot) => {
+      const lastIdx = st.slots.length - 1;
+      const eatenSoFar = () => meals.reduce((a, m) => FD.nutrition.add(a, m.totals), FD.nutrition.zero());
+      const meals = [];
+      st.slots.forEach((slot, idx) => {
         const fixedId = s.fixed && s.fixed[slot.meal];
+        const isLast = idx === lastIdx;
+        // cible du dernier repas : ce qu'il reste pour boucler la journée
+        const target = isLast ? (() => { const so = eatenSoFar(); return { kcal: Math.max(200, st.target.kcal - so.kcal), p: Math.max(10, st.target.p - so.p) }; })() : slot.target;
+        const slotT = Object.assign({}, slot, { target });
         let choice = null;
         if (fixedId) {
-          const r = recipes.find((x) => x.id === fixedId);
-          if (r) choice = { recipe: r, fit: FD.recipes.fit(state, r, slot.target) };
+          const r = recipes.find((x) => x.id === fixedId) || FD.recipes.byId(state, fixedId);
+          if (r) choice = { recipe: r, fit: FD.recipes.fit(state, r, target) };
+        }
+        const key = slot.meal + (slot.label || '');
+        if (!choice && s.batch && batch[key] && batch[key].left > 0 && !ctx.today.includes(batch[key].recipe.id)) {
+          batch[key].left--;
+          choice = { recipe: batch[key].recipe, fit: FD.recipes.fit(state, batch[key].recipe, target), batched: true };
         }
         if (!choice) {
-          const cands = recipes.filter((r) => r.meals.includes(slot.meal)).map((r) => scoreRecipe(state, r, slot, ctx)).sort((a, b) => a.score - b.score);
+          let cands = recipes.filter((r) => r.meals.includes(slot.meal)).map((r) => scoreRecipe(state, r, slotT, ctx));
+          if (isLast) {
+            // dernier repas : on choisit sur l'écart de la journée entière (y compris glucides et lipides)
+            const so = eatenSoFar();
+            cands.forEach((c) => { c.score = c.score - FD.recipes.fitError(c.fit.totals, target) + 1.2 * dayError(FD.nutrition.add(Object.assign({}, so), c.fit.totals), st.target); });
+          }
+          cands.sort((a, b) => a.score - b.score);
           choice = cands[0] || null;
+          if (choice && s.batch && FD.recipes.category(choice.recipe) === 'prepmeal' && choice.recipe.servings >= 3) batch[key] = { recipe: choice.recipe, left: choice.recipe.servings - 1 };
         }
-        if (!choice) return { meal: slot.meal, label: slot.label, tag: slot.tag, target: slot.target, recipeId: null, ingredients: [], totals: FD.nutrition.zero() };
+        if (!choice) { meals.push({ meal: slot.meal, label: slot.label, tag: slot.tag, target, recipeId: null, ingredients: [], totals: FD.nutrition.zero() }); return; }
         ctx.uses[choice.recipe.id] = (ctx.uses[choice.recipe.id] || 0) + 1;
         ctx.today.push(choice.recipe.id);
         choice.fit.ingredients.forEach((i) => { ctx.basket[i.foodId] = true; });
-        return { meal: slot.meal, label: slot.label, tag: slot.tag, target: slot.target, recipeId: choice.recipe.id, ingredients: choice.fit.ingredients, totals: choice.fit.totals };
+        meals.push({ meal: slot.meal, label: slot.label, tag: slot.tag, target, recipeId: choice.recipe.id, ingredients: choice.fit.ingredients, totals: choice.fit.totals, batched: !!choice.batched });
       });
+      // Garde-fou : la journée ne dépasse jamais le plafond du profil (on réduit le dernier repas ajustable)
+      const cap = state.profile.kcalMax > 0 ? state.profile.kcalMax : Infinity;
+      const adjustable = meals.slice().reverse().filter((x) => x.recipeId && !(s.fixed && s.fixed[x.meal]));
+      for (const m of adjustable) {
+        const over = eatenSoFar().kcal - cap;
+        if (over <= 0) break;
+        const r = FD.recipes.byId(state, m.recipeId);
+        // 1) réajuster protéines/féculents du repas ; 2) sinon, réduire légèrement la portion entière
+        let f = FD.recipes.fit(state, r, { kcal: Math.max(150, m.totals.kcal - over - 10), p: Math.max(10, m.totals.p - 2) });
+        if (f.totals.kcal > m.totals.kcal - over) {
+          const ratio = Math.max(0.6, (m.totals.kcal - over - 10) / m.totals.kcal);
+          const ings = m.ingredients.map((i) => Object.assign({}, i, { qty: FD.recipes.roundQty(i.qty * ratio, i.unit, FD.foods.byId(state, i.foodId)) }));
+          f = { ingredients: ings, totals: FD.recipes.compute(state, { servings: 1 }, ings).total };
+        }
+        if (f.totals.kcal < m.totals.kcal) Object.assign(m, { ingredients: f.ingredients, totals: f.totals });
+      }
       days.push({ iso, type: st.target.type.label, target: st.target, meals });
     }
     return { createdAt: new Date().toISOString(), start: startIso, settings: s, days };
@@ -201,5 +260,5 @@ FD.planner = (function () {
     return { slots, options: out, remaining, target, eaten };
   }
 
-  return { SLOTS, defaultSettings, slotTargets, generate, recompute, dayTotals, alternative, completeDay };
+  return { SLOTS, defaultSettings, slotTargets, poolOf, generate, recompute, dayTotals, alternative, completeDay };
 })();

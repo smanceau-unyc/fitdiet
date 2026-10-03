@@ -1,4 +1,4 @@
-# FitDiet Coach — version 3.8.1
+# FitDiet Coach — version 3.9
 
 Application de suivi nutritionnel sportif en HTML/CSS/JavaScript vanilla.
 Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun serveur.
@@ -19,6 +19,7 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Photos de progression** (V3) : face / profil / dos, datées, stockées uniquement dans le navigateur (IndexedDB), comparaison dernière / 1 semaine / 1 mois / 3 mois, export/import séparé.
 - **Fruits et légumes à la pièce** (V3.1) : 1 banane, 1 tomate, 1 poignée de salade… avec calibre petit / moyen / gros et l'équivalent en grammes affiché ; 30 fruits et légumes ajoutés.
 - **Ciqual 2025 intégrée hors ligne** (V3.3) : 3 385 aliments de la table ANSES, dont environ 400 plats composés (lasagnes, couscous, hachis parmentier, quiches, pizzas, soupes, salades composées), 66 sandwichs, viennoiseries, desserts et boissons, avec portions types (assiette, part, bol, sandwich, verre). Les aliments de base sont liés à Ciqual (sauf skyr, whey, crème de riz). Licence Ouverte Etalab 2.0 ; données converties depuis github.com/OlivierFitter/ciqual_2025_complete.
+- **Plan corrigé** (V3.9) : plafond et plancher du profil appliqués à toutes les cibles ; dernier repas de chaque journée recalé sur ce qu'il reste (calories, protéines, glucides, lipides) ; garde-fou qui empêche tout dépassement du plafond ; choix des recettes (toutes, privilégier ou uniquement une collection, recettes de l'app, mes recettes) ; batch cooking (un prep'meal de 4 portions sert plusieurs jours) ; temps de préparation compté par portion ; petites quantités (huile, miel) non gonflées par l'arrondi.
 - **Robustesse** (V3.8.1) : numéro de version sur les fichiers (le navigateur recharge toujours les bons), page d'erreur explicite au lieu d'un écran vide, suggestions désactivées proprement en cas de problème. Version affichée sous le menu.
 - **Compléter ma journée** (V3.8) : dès qu'un repas est saisi, le journal propose 3 combinaisons de recettes (déjeuner, collation, dîner) aux portions ajustées pour boucler calories, protéines, glucides et lipides ; ajout en un clic.
 - **Photos en lot** (V3.7) : Recettes → « Importer des photos » ; chaque image est associée à sa recette par son nom de fichier (identifiant de recette, ex. `cfz1-p75.jpg`, ou nom de la recette).
@@ -27,7 +28,7 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Lipides quotidiens** (V3.4) : objectif de lipides en g/jour dans le profil (65 g par défaut), appliqué à toutes les séances ; les glucides prennent le reste. Champ vide = lipides réglés séance par séance.
 - **Fractions** (V3.3) : « 1/2 », « ½ », « 1 1/2 » acceptés, boutons ¼ ½ ¾ 1 1½ 2, affichage « ½ × avocat ».
 - **Prix** (V3) : prix indicatifs modifiables, coût estimé par jour, par plan et pour la liste de courses, budget hebdomadaire du profil pris en compte par le générateur (sans sacrifier les protéines).
-- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 25 scénarios.
+- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 26 scénarios.
 
 ## Architecture
 

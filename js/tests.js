@@ -226,6 +226,20 @@ FD.tests = (function () {
       }
     },
     {
+      name: 'Plan avec recettes importées — aucune journée au-dessus du plafond du profil (2 000 kcal)',
+      run: () => {
+        const s = FD.storage.defaultState();
+        let over = 0, n = 0;
+        for (let seed = 1; seed <= 5; seed++) {
+          const plan = FD.planner.generate(s, { days: 7, seed }, TODAY);
+          plan.days.forEach((d) => { n++; if (FD.planner.dayTotals(d).kcal > s.profile.kcalMax) over++; });
+        }
+        s.sessionTypes[0].kcal = 2300; // un type de séance réglé au-dessus du plafond reste plafonné
+        const t = FD.calc.dayTarget(s, '2026-10-05');
+        return { ok: over === 0 && t.kcal <= s.profile.kcalMax, title: over + ' jour(s) sur ' + n + ' au-dessus du plafond' };
+      }
+    },
+    {
       name: 'Prix — un prix saisi remplace le prix indicatif ; coût proratisé au poids',
       run: () => {
         const s = FD.storage.defaultState();

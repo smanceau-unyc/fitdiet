@@ -308,7 +308,7 @@
         '<td><select data-change="type-field" data-id="' + esc(t.id) + '" data-field="cat" aria-label="Catégorie">' + opts([['force', 'Force'], ['run_hard', 'Course intense/longue'], ['cardio', 'Cardio modéré'], ['repos', 'Repos / récup']], t.cat) + '</select></td>' +
         '<td class="num"><input type="number" step="10" value="' + t.kcal + '" data-change="type-field" data-id="' + esc(t.id) + '" data-field="kcal" aria-label="Calories" style="width:90px"></td>' +
         '<td class="num">' + (fixedFat ? p.fatG + ' <span class="small muted">(profil)</span>' : '<input type="number" value="' + t.fat + '" data-change="type-field" data-id="' + esc(t.id) + '" data-field="fat" aria-label="Lipides" style="width:72px">') + '</td>' +
-        '<td class="num">' + p.proteinG + '</td><td class="num">≈ ' + U.roundTo(m.g, 5) + '</td></tr>';
+        '<td class="num">' + p.proteinG + '</td><td class="num">≈ ' + U.roundTo(m.g, 5) + ((t.kcal + p.kcalOffset) > p.kcalMax ? '<br><span class="small" style="color:var(--warn)">plafonné à ' + U.num(p.kcalMax) + ' kcal</span>' : '') + '</td></tr>';
     }).join('');
 
     return '<div class="container">' +
@@ -552,7 +552,7 @@
           field('Lipides (g/jour)', 'fatG', p.fatG > 0 ? p.fatG : '', 'number', ' placeholder="selon la séance"') +
           field('Fibres (g/jour)', 'fiberG', p.fiberG, 'number') +
           sel('Repas par jour', 'mealsPerDay', [[3, '3'], [4, '4'], [5, '5']], p.mealsPerDay) +
-        '</div><p class="small muted">Les calories par type de séance se règlent dans Semaine. Protéines et lipides sont fixes chaque jour ; les glucides prennent le reste et varient avec la séance. Laisse les lipides vides pour les régler séance par séance. Le plancher et le plafond servent de garde-fous au coach.</p></fieldset>' +
+        '</div><p class="small muted">Les calories par type de séance se règlent dans Semaine. Protéines et lipides sont fixes chaque jour ; les glucides prennent le reste et varient avec la séance. Laisse les lipides vides pour les régler séance par séance. Le plancher et le plafond encadrent toutes les cibles du jour (plan, journal, coach).</p></fieldset>' +
         '<fieldset><legend>Alimentation</legend><div class="form-grid">' +
           sel('Régime', 'diet', [['omnivore', 'Omnivore'], ['pescetarien', 'Pescétarien'], ['vegetarien', 'Végétarien'], ['vegetalien', 'Végétalien'], ['sans-porc', 'Sans porc']], p.diet) +
           field('Allergies', 'allergies', p.allergies) + field('Intolérances', 'intolerances', p.intolerances) + field('Aliments exclus', 'excluded', p.excluded) + field('Aliments préférés', 'preferred', p.preferred) +
@@ -813,7 +813,7 @@
         const meals = d.meals.map((m, mi) => {
           const r = m.recipeId && R.byId(S, m.recipeId);
           return '<div class="plan-meal"><div class="between"><span><strong>' + esc(m.label) + '</strong>' + (m.tag ? ' <span class="badge">' + esc(m.tag) + '</span>' : '') + '</span><span class="small muted">' + U.num(m.totals.kcal) + ' / ≈ ' + U.kcal(m.target.kcal) + ' kcal · P ' + U.num(m.totals.p) + ' g</span></div>' +
-            '<span>' + esc(r ? r.name : 'Aucune recette compatible') + '</span>' +
+            '<span>' + esc(r ? r.name : 'Aucune recette compatible') + (m.batched ? ' <span class="badge">batch · déjà préparé</span>' : '') + (r && r.source && r.source.collection ? ' <span class="badge">' + esc(r.source.collection) + '</span>' : '') + '</span>' +
             '<details' + (ui.planOpen === di + '-' + mi ? ' open' : '') + '><summary class="small">Ingrédients et remplacements</summary><div class="stack" style="gap:6px">' + m.ingredients.map((ing, ii) => {
               const subs = R.substitutesFor(S, ing.foodId);
               return '<div class="between small"><span>' + ingLabel(ing) + '</span>' + (subs.length ? '<select data-change="plan-sub" data-d="' + di + '" data-m="' + mi + '" data-i="' + ii + '" style="width:auto;min-height:36px" aria-label="Remplacer"><option value="">Remplacer…</option>' + subs.map((s) => '<option value="' + esc(s.id) + '">' + esc(F.displayName(s)) + '</option>').join('') + '</select>' : '') + '</div>';
@@ -836,7 +836,9 @@
         '<label>Budget<select name="budget">' + opts([['eco', 'Économique'], ['moyen', 'Moyen'], ['premium', 'Premium']], st.budget) + '</select></label>' +
         '<label>Petit-déjeuner<select name="fixPetitdej">' + opts(recOpts('petitdej'), st.fixed.petitdej || '') + '</select></label>' +
         '<label>Dîner<select name="fixDiner">' + opts(recOpts('diner'), st.fixed.diner || '') + '</select></label>' +
-      '</div><p class="small muted">Exclusions, allergies et régime du profil sont respectés. Un budget serré écarte d\'abord les ingrédients premium, jamais les protéines.</p>' +
+        '<label>Recettes<select name="pool">' + opts([['all', 'Toutes']].concat(Object.keys(R.collections(S)).reduce((a, c) => a.concat([['prefer:' + c, 'Privilégier ' + c], ['only:' + c, 'Uniquement ' + c]]), [])).concat([['app', 'Recettes de l\'app'], ['user', 'Mes recettes']]), st.pool || 'all') + '</select></label>' +
+        '<label class="check"><input type="checkbox" name="batch"' + (st.batch !== false ? ' checked' : '') + '>Batch cooking : un prep\'meal sert plusieurs jours</label>' +
+      '</div><p class="small muted">Chaque journée respecte ton plafond de ' + U.num(S.profile.kcalMax) + ' kcal et vise la cible de sa séance ; le dernier repas est recalé sur ce qu\'il reste. Exclusions, allergies et régime du profil sont respectés. Un budget serré écarte d\'abord les ingrédients premium, jamais les protéines.</p>' +
       '<div class="inline"><button class="btn primary" type="submit">' + (plan ? 'Régénérer le plan' : 'Générer le plan') + '</button>' + (plan ? '<button type="button" class="btn ghost danger" data-action="plan-clear">Supprimer le plan</button>' : '') + '</div></form>' +
       (plan ? (function () { const pc = FD.prices.planCost(S, plan); const wb = FD.prices.weeklyBudget(S); const b = wb ? wb * plan.days.length / 7 : null;
         return '<section class="card tight"><p>Coût estimé du plan : <strong>≈ ' + U.num(pc.total, 2) + ' €</strong>' + (b ? ' pour un budget de ' + U.num(b, 0) + ' € sur ' + plan.days.length + ' jour(s)' + (pc.total > b * 1.05 ? ' — au-dessus : passe le budget sur « Économique » ou ajuste tes prix.' : ' — dans le budget.') : ' (renseigne un budget hebdomadaire dans ton profil pour le comparer).') + '</p><p class="small muted">Coût proratisé à la quantité consommée, à partir de tes prix ou de prix indicatifs.</p></section>'; })() : '') +
@@ -1479,7 +1481,7 @@
       case 'plan': {
         const settings = {
           days: parseInt(v.days, 10) || 7, mealsPerDay: parseInt(v.mealsPerDay, 10) || 4, budget: v.budget || 'moyen',
-          fixed: { petitdej: v.fixPetitdej || '', diner: v.fixDiner || '' }, seed: Math.floor(Math.random() * 100000)
+          fixed: { petitdej: v.fixPetitdej || '', diner: v.fixDiner || '' }, seed: Math.floor(Math.random() * 100000), pool: v.pool || 'all', batch: !!v.batch
         };
         S.planSettings = settings;
         S.plan = FD.planner.generate(S, settings, v.start || today());
