@@ -1,4 +1,4 @@
-# FitDiet Coach — version 3.7
+# FitDiet Coach — version 3.8
 
 Application de suivi nutritionnel sportif en HTML/CSS/JavaScript vanilla.
 Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun serveur.
@@ -19,13 +19,14 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Photos de progression** (V3) : face / profil / dos, datées, stockées uniquement dans le navigateur (IndexedDB), comparaison dernière / 1 semaine / 1 mois / 3 mois, export/import séparé.
 - **Fruits et légumes à la pièce** (V3.1) : 1 banane, 1 tomate, 1 poignée de salade… avec calibre petit / moyen / gros et l'équivalent en grammes affiché ; 30 fruits et légumes ajoutés.
 - **Ciqual 2025 intégrée hors ligne** (V3.3) : 3 385 aliments de la table ANSES, dont environ 400 plats composés (lasagnes, couscous, hachis parmentier, quiches, pizzas, soupes, salades composées), 66 sandwichs, viennoiseries, desserts et boissons, avec portions types (assiette, part, bol, sandwich, verre). Les aliments de base sont liés à Ciqual (sauf skyr, whey, crème de riz). Licence Ouverte Etalab 2.0 ; données converties depuis github.com/OlivierFitter/ciqual_2025_complete.
+- **Compléter ma journée** (V3.8) : dès qu'un repas est saisi, le journal propose 3 combinaisons de recettes (déjeuner, collation, dîner) aux portions ajustées pour boucler calories, protéines, glucides et lipides ; ajout en un clic.
 - **Photos en lot** (V3.7) : Recettes → « Importer des photos » ; chaque image est associée à sa recette par son nom de fichier (identifiant de recette, ex. `cfz1-p75.jpg`, ou nom de la recette).
 - **Classement, cru/cuit et illustrations** (V3.6) : recettes classées (overnight oats, petits-déjeuners, prep'meals, repas, snacks, smoothies, jus) avec filtres ; équivalence cru ↔ cuit affichée pour féculents, viandes et poissons ; illustration générée pour chaque recette à partir de ses ingrédients (js/recipeArt.js), remplaçable par une photo personnelle.
 - **Import de recettes et photos** (V3.5) : import d'un fichier de recettes JSON (type `fitdiet-coach-recipes`), filtre par collection, retrait d'une collection, photo personnelle par recette stockée localement (IndexedDB), notes par ingrédient, valeurs annoncées par la source affichées à titre de comparaison. Les fichiers de recettes issus de livres achetés restent privés : ne pas les déposer dans le dépôt GitHub.
 - **Lipides quotidiens** (V3.4) : objectif de lipides en g/jour dans le profil (65 g par défaut), appliqué à toutes les séances ; les glucides prennent le reste. Champ vide = lipides réglés séance par séance.
 - **Fractions** (V3.3) : « 1/2 », « ½ », « 1 1/2 » acceptés, boutons ¼ ½ ¾ 1 1½ 2, affichage « ½ × avocat ».
 - **Prix** (V3) : prix indicatifs modifiables, coût estimé par jour, par plan et pour la liste de courses, budget hebdomadaire du profil pris en compte par le générateur (sans sacrifier les protéines).
-- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 24 scénarios.
+- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 25 scénarios.
 
 ## Architecture
 

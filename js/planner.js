@@ -132,5 +132,74 @@ FD.planner = (function () {
     return true;
   }
 
-  return { SLOTS, defaultSettings, slotTargets, generate, recompute, dayTotals, alternative };
+  /**
+   * « Compléter ma journée » : à partir de ce qui est déjà saisi (ex. le petit-déjeuner),
+   * propose les meilleures combinaisons de recettes pour les repas restants, portions ajustées,
+   * afin que la journée atteigne au plus près calories, protéines, glucides et lipides.
+   * Le dernier repas est recalé sur ce qu'il reste après les précédents.
+   */
+  function completeDay(state, iso, options) {
+    const opts = Object.assign({ top: 3, perSlot: 7 }, options || {});
+    const day = state.days[iso] || { foods: [] };
+    const target = FD.calc.dayTarget(state, iso);
+    const eaten = FD.tracking.dayTotals(state, iso);
+    const n = Math.min(5, Math.max(3, state.profile.mealsPerDay || 4));
+    const wanted = n >= 4 ? ['dejeuner', 'collation', 'diner'] : ['dejeuner', 'diner'];
+    const logged = (m) => (day.foods || []).some((e) => e.meal === m);
+    const slots = wanted.filter((m) => !logged(m));
+    if (!slots.length) return { slots, options: [], remaining: null, target, eaten };
+    const remaining = { kcal: target.kcal - eaten.kcal, p: target.p - eaten.p, g: target.g - eaten.g, l: target.l - eaten.l };
+    if (remaining.kcal < 150) return { slots, options: [], remaining, target, eaten };
+    const SHARE = { dejeuner: 0.38, collation: 0.18, diner: 0.38 };
+    const totShare = slots.reduce((a, m) => a + SHARE[m], 0);
+    const slotTarget = (m, rem) => ({ kcal: Math.max(0, rem.kcal) * SHARE[m] / totShare, p: Math.max(0, rem.p) * SHARE[m] / totShare });
+    const recipes = FD.recipes.all(state).filter((r) => FD.recipes.recipeAllowed(state, r).ok);
+    // Présélection des meilleures recettes par repas (variété : une recette par catégorie au maximum en tête)
+    const cands = {};
+    slots.forEach((m) => {
+      const t = slotTarget(m, remaining);
+      cands[m] = recipes.filter((r) => r.meals.includes(m) && FD.recipes.category(r) !== 'jus')
+        .map((r) => { const f = FD.recipes.fit(state, r, t); return { recipe: r, fit: f, err: FD.recipes.fitError(f.totals, t) }; })
+        .sort((a, b) => a.err - b.err).slice(0, opts.perSlot);
+    });
+    const err = (tot) => {
+      const T = target;
+      return (tot.kcal > T.kcal ? 1.6 : 1) * Math.abs(tot.kcal - T.kcal) / T.kcal + 1.5 * Math.max(0, T.p - tot.p) / T.p + 0.3 * Math.max(0, tot.p - T.p * 1.15) / T.p +
+        0.6 * Math.abs(tot.g - T.g) / Math.max(T.g, 1) + 0.8 * Math.abs(tot.l - T.l) / Math.max(T.l, 1);
+    };
+    const last = slots[slots.length - 1], firsts = slots.slice(0, -1);
+    const combos = [];
+    const recurse = (i, picked) => {
+      if (i < firsts.length) {
+        cands[firsts[i]].forEach((c) => { if (!picked.some((p) => p.recipe.id === c.recipe.id)) recurse(i + 1, picked.concat([Object.assign({ meal: firsts[i] }, c)])); });
+        return;
+      }
+      // dernier repas : cible = ce qu'il reste après les repas déjà choisis
+      const sofar = picked.reduce((a, p) => FD.nutrition.add(a, p.fit.totals), FD.nutrition.add(FD.nutrition.zero(), eaten));
+      const lastT = { kcal: Math.max(150, target.kcal - sofar.kcal), p: Math.max(10, target.p - sofar.p) };
+      recipes.filter((r) => r.meals.includes(last) && FD.recipes.category(r) !== 'jus' && !picked.some((p) => p.recipe.id === r.id)).forEach((r) => {
+        const f = FD.recipes.fit(state, r, lastT);
+        const tot = FD.nutrition.add(Object.assign({}, sofar), f.totals);
+        const meals = picked.concat([{ meal: last, recipe: r, fit: f }]);
+        let e = err(tot);
+        const cats = meals.map((m) => FD.recipes.category(m.recipe));
+        if (new Set(cats).size < cats.length) e += 0.04; // un peu de variété
+        combos.push({ meals, totals: tot, error: e });
+      });
+    };
+    recurse(0, []);
+    combos.sort((a, b) => a.error - b.error);
+    // Options distinctes : pas deux fois le même plat principal
+    const out = [], seen = new Set();
+    for (const c of combos) {
+      const key = c.meals.filter((m) => m.meal !== 'collation').map((m) => m.recipe.id).join('|');
+      if (seen.has(key)) continue;
+      if (out.some((o) => o.meals.filter((m) => m.meal !== 'collation').some((m) => c.meals.some((x) => x.recipe.id === m.recipe.id)))) continue;
+      seen.add(key); out.push(c);
+      if (out.length >= opts.top) break;
+    }
+    return { slots, options: out, remaining, target, eaten };
+  }
+
+  return { SLOTS, defaultSettings, slotTargets, generate, recompute, dayTotals, alternative, completeDay };
 })();

@@ -215,6 +215,17 @@ FD.tests = (function () {
       }
     },
     {
+      name: 'Compléter ma journée — après le petit-déj, la meilleure option boucle à ±5 % des kcal et ≥ 95 % des protéines',
+      run: () => {
+        const s = FD.storage.defaultState();
+        FD.tracking.addTemplate(s, TODAY, s.templates[0]);
+        const r = FD.planner.completeDay(s, TODAY);
+        const o = r.options[0], T = r.target;
+        const ok = !!o && r.slots.length >= 2 && Math.abs(o.totals.kcal - T.kcal) / T.kcal <= 0.05 && o.totals.p >= T.p * 0.95;
+        return { ok, title: o ? Math.round(o.totals.kcal) + ' / ' + T.kcal + ' kcal, P ' + Math.round(o.totals.p) + ' g' : 'aucune option' };
+      }
+    },
+    {
       name: 'Prix — un prix saisi remplace le prix indicatif ; coût proratisé au poids',
       run: () => {
         const s = FD.storage.defaultState();
