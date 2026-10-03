@@ -211,11 +211,58 @@ FD.recipes = (function () {
     return { recipes: data.recipes.length, foods: foods.length, collection: data.collection || null, missing };
   }
 
+  /* ---------------- Catégories ---------------- */
+  const CATEGORIES = [
+    { id: 'overnight', label: 'Overnight oats' },
+    { id: 'petitdej', label: 'Petits-déjeuners' },
+    { id: 'prepmeal', label: 'Prep\'meals' },
+    { id: 'repas', label: 'Repas' },
+    { id: 'snack', label: 'Snacks, desserts et en-cas' },
+    { id: 'smoothie', label: 'Smoothies' },
+    { id: 'jus', label: 'Jus et potions' }
+  ];
+
+  /** Catégorie d'une recette : champ « category » s'il existe, sinon déduite du nom, des tags et des repas. */
+  function category(r) {
+    if (r.category) return r.category;
+    const n = U.norm(r.name), tags = r.tags || [];
+    if (tags.includes('jus') || /^(jus|potion)|juice|potion/.test(n)) return 'jus';
+    if (/smoothie/.test(n)) return 'smoothie';
+    if (/overnight/.test(n)) return 'overnight';
+    const meal = r.meals.some((m) => m === 'dejeuner' || m === 'diner');
+    if (meal && !r.meals.includes('collation') && (r.servings >= 3 || tags.includes('batch') || /prepmeal|prep meal/.test(n))) return 'prepmeal';
+    if (meal && !r.meals.includes('collation')) return 'repas';
+    if (r.meals.length === 1 && r.meals[0] === 'petitdej') return 'petitdej';
+    if (r.meals.includes('petitdej') && !/cookie|cake|bread|brownie|tartelette|creme|coeur|granola|pain/.test(n)) return 'petitdej';
+    return 'snack';
+  }
+
+  /* ---------------- Correspondance cru / cuit ---------------- */
+  // Paires Ciqual intégrées utilisées par les recettes (en plus des paires de la base cru/cuit)
+  const CIQ_PAIRS = { 'cq-9870': 'cq-9871', 'cq-9871': 'cq-9870', 'cq-4101': 'cq-4102', 'cq-4102': 'cq-4101', 'saumon-cru': 'cq-26230' };
+
+  /**
+   * Équivalent cru ↔ cuit d'un ingrédient (féculents, viandes, poissons), par conservation de l'énergie :
+   * poids_autre = poids × kcal(état) / kcal(autre état). Renvoie null si pas de correspondance.
+   */
+  function cookEquivalent(state, ing) {
+    const f = FD.foods.byId(state, ing.foodId);
+    if (!f || !['feculents', 'viandes', 'poissons'].includes(f.cat) && !CIQ_PAIRS[f.id]) return null;
+    let other = null;
+    if (CIQ_PAIRS[f.id]) other = FD.foods.byId(state, CIQ_PAIRS[f.id]);
+    else if (f.isBase && f.state) other = FD.foods.all(state).find((x) => x.isBase && x.base === f.base && x.state && x.state !== f.state) || null;
+    if (!other || !other.kcal) return null;
+    const grams = FD.foods.toBaseQty(f, ing.qty, ing.unit);
+    if (!grams) return null;
+    const st = other.state || (/cuit|roti|grill/.test(U.norm(other.base)) ? 'cuit' : 'cru');
+    return { state: st, grams: Math.round(grams * f.kcal / other.kcal / 5) * 5, food: other };
+  }
+
   function collections(state) {
     const c = {};
     (state.recipes || []).forEach((r) => { const k = r.source && r.source.collection; if (k) c[k] = (c[k] || 0) + 1; });
     return c;
   }
 
-  return { importCollection, collections, all, byId, sourceLabel, compute, roundQty, perServing, fit, fitError, substitutesFor, substitute, foodAllowed, recipeAllowed, suggest, SOURCE_APP };
+  return { CATEGORIES, category, cookEquivalent, importCollection, collections, all, byId, sourceLabel, compute, roundQty, perServing, fit, fitError, substitutesFor, substitute, foodAllowed, recipeAllowed, suggest, SOURCE_APP };
 })();

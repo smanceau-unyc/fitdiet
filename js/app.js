@@ -19,7 +19,7 @@
     route: 'tableau', jDate: today(), query: '', results: [], pick: null, variantId: null, qty: '100', unit: 'g', meal: defaultMeal(),
     tab: 'base', off: { query: '', loading: false, results: [], error: null }, subEntry: null, trackDate: today(),
     sug: [], recipe: null, rIngs: null, rIngsFor: null, rServings: 1, rMeal: null, rQuery: '', rFilterMeal: '', editor: null, edQuery: '', edResults: [],
-    rCollection: '', recipePhotoUrls: [],
+    rCollection: '', rCat: '', recipePhotoUrls: [],
     ciqLabel: 'CIQUAL', ciqManual: null, ciqQuery: '', scan: { msg: null, error: null, loading: false }, photoView: 'face', photoUrls: []
   };
 
@@ -632,7 +632,8 @@
   function ingLabel(ing) {
     const f = F.byId(S, ing.foodId);
     if (!f) return esc(ing.foodId) + ' (introuvable)';
-    return esc(F.qtyLabel(f, ing.qty, ing.unit) + ' ' + F.displayName(f).toLowerCase());
+    const eq = R.cookEquivalent(S, ing);
+    return esc(F.qtyLabel(f, ing.qty, ing.unit) + ' ' + F.displayName(f).toLowerCase() + (eq ? ' (≈ ' + U.num(eq.grams) + ' g ' + eq.state + ')' : ''));
   }
 
   /** Prochain repas sans entrée aujourd'hui, et sa cible. */
@@ -676,7 +677,7 @@
   function recipeCard(r) {
     const c = R.compute(S, r);
     const allowed = R.recipeAllowed(S, r);
-    return '<article class="recipe-card"><div class="recipe-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + esc(r.name.charAt(0)) + '</div><div class="stack" style="gap:4px">' +
+    return '<article class="recipe-card"><div class="recipe-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, r) + '</div><div class="stack" style="gap:4px">' +
       '<strong>' + esc(r.name) + '</strong><span class="small muted">' + r.meals.map((m) => MEAL_LABEL[m]).join(', ') + ' · ' + ((r.prep || 0) + (r.cook || 0)) + ' min · ' + r.servings + ' portion' + (r.servings > 1 ? 's' : '') + '</span>' +
       '<span class="small">' + macroLine(c.per) + ' / portion</span>' +
       (allowed.ok ? '' : '<span class="small" style="color:var(--warn)">Exclue : ' + esc(allowed.reason) + '</span>') +
@@ -693,11 +694,12 @@
     const rows = c.lines.map((l, idx) => {
       const subs = R.substitutesFor(S, l.ing.foodId);
       return '<tr><td>' + esc(F.displayName(l.food)) + (l.ing.note ? '<br><span class="small muted">' + esc(l.ing.note) + '</span>' : '') + (l.food.variable ? '<br><span class="small" style="color:var(--warn)">valeur indicative</span>' : '') + '<br><span class="small muted">' + esc((F.SOURCES[l.food.source] || F.SOURCES.demo).short) + '</span></td>' +
-        '<td class="num">' + esc(F.qtyLabel(l.food, l.ing.qty, l.ing.unit)) + '</td><td class="num">' + U.num(l.v.kcal) + '</td><td class="num">' + U.num(l.v.p, 1) + '</td><td class="num">' + U.num(l.v.g, 1) + '</td><td class="num">' + U.num(l.v.l, 1) + '</td><td class="num">' + U.num(l.v.fib, 1) + '</td>' +
+        '<td class="num">' + esc(F.qtyLabel(l.food, l.ing.qty, l.ing.unit)) + (function () { const eq = R.cookEquivalent(S, l.ing); return eq ? '<br><span class="small teal">≈ ' + U.num(eq.grams) + ' g ' + esc(eq.state) + '</span>' : ''; })() + '</td><td class="num">' + U.num(l.v.kcal) + '</td><td class="num">' + U.num(l.v.p, 1) + '</td><td class="num">' + U.num(l.v.g, 1) + '</td><td class="num">' + U.num(l.v.l, 1) + '</td><td class="num">' + U.num(l.v.fib, 1) + '</td>' +
         '<td>' + (subs.length ? '<label class="sr-only" for="rs-' + idx + '">Remplacer</label><select id="rs-' + idx + '" data-change="r-sub" data-idx="' + idx + '" style="min-width:140px"><option value="">Remplacer…</option>' + subs.map((s) => '<option value="' + esc(s.id) + '">' + esc(F.displayName(s)) + '</option>').join('') + '</select>' : '') + '</td></tr>';
     }).join('');
     return '<section class="card" aria-label="Recette"><div class="card-head"><h2>' + esc(r.name) + '</h2><button class="btn sm ghost" data-action="r-close">Fermer</button></div>' +
-      '<div class="recipe-photo" id="recipe-photo" data-id="' + esc(r.id) + '"></div>' +
+      '<div class="recipe-photo" id="recipe-photo" data-id="' + esc(r.id) + '">' + FD.recipeArt.svg(S, r) + '</div>' +
+      '<p class="small muted" id="recipe-art-note">Illustration générée à partir des ingrédients de la recette. Ajoute ta propre photo pour la remplacer.</p>' +
       '<div class="inline"><label class="btn sm" style="flex-direction:row">' + 'Ajouter / changer la photo<input type="file" accept="image/*" data-change="r-photo" data-id="' + esc(r.id) + '" class="sr-only"></label><button class="btn sm ghost" data-action="r-photo-del" data-id="' + esc(r.id) + '">Retirer la photo</button><span class="small muted">Ta photo reste sur cet appareil.</span></div>' +
       '<div class="inline small muted"><span>Préparation ' + (r.prep || 0) + ' min</span><span>Cuisson ' + (r.cook || 0) + ' min</span><span>Difficulté : ' + esc(r.difficulty || 'facile') + '</span>' + (r.keep ? '<span>Conservation : ' + esc(r.keep) + '</span>' : '') +
       '<label style="flex-direction:row;align-items:center;gap:8px">Portions<input type="number" min="1" max="12" value="' + ui.rServings + '" data-change="r-servings" style="width:72px"></label></div>' +
@@ -705,7 +707,7 @@
       '<tr><td><strong>Total</strong></td><td></td><td class="num"><strong>' + U.num(c.total.kcal) + '</strong></td><td class="num">' + U.num(c.total.p) + '</td><td class="num">' + U.num(c.total.g) + '</td><td class="num">' + U.num(c.total.l) + '</td><td class="num">' + U.num(c.total.fib, 1) + '</td><td></td></tr>' +
       '<tr><td><strong>Par portion</strong></td><td></td><td class="num"><strong>' + U.num(c.per.kcal) + '</strong></td><td class="num">' + U.num(c.per.p) + '</td><td class="num">' + U.num(c.per.g) + '</td><td class="num">' + U.num(c.per.l) + '</td><td class="num">' + U.num(c.per.fib, 1) + '</td><td></td></tr></tbody></table></div>' +
       (c.missing.length ? '<div class="alert warn">Ingrédients introuvables, non comptés : ' + esc(c.missing.join(', ')) + '</div>' : '') +
-      '<p class="small muted">Macros calculées en additionnant chaque ingrédient puis en divisant par ' + ui.rServings + ' portion' + (ui.rServings > 1 ? 's' : '') + '.' + (c.variable ? ' Certaines valeurs dépendent de la marque : vérifier l\'étiquette.' : '') + (c.sources.includes('demo') ? ' Valeurs de démonstration, indicatives.' : '') + ' Une substitution conserve l\'apport principal de l\'ingrédient (protéines ou glucides).</p>' +
+      '<p class="small muted">Macros calculées en additionnant chaque ingrédient puis en divisant par ' + ui.rServings + ' portion' + (ui.rServings > 1 ? 's' : '') + '.' + (c.variable ? ' Certaines valeurs dépendent de la marque : vérifier l\'étiquette.' : '') + (c.sources.includes('demo') ? ' Valeurs de démonstration, indicatives.' : '') + ' Une substitution conserve l\'apport principal de l\'ingrédient (protéines ou glucides). Les équivalences cru ↔ cuit (en vert) sont estimées à partir des valeurs Ciqual : elles varient selon la cuisson et l\'eau absorbée.</p>' +
       (r.bookMacros ? '<p class="small muted">Valeurs annoncées par la source pour 1 portion : ' + U.num(r.bookMacros[0]) + ' kcal, P ' + U.num(r.bookMacros[1]) + ' g' + (r.bookMacros.length > 2 ? ', G ' + U.num(r.bookMacros[2]) + ' g, L ' + U.num(r.bookMacros[3], 1) + ' g' : '') + '. L\'app recalcule à partir des ingrédients (Ciqual), d\'où d\'éventuels écarts.</p>' : '') +
       (r.note ? '<p class="small muted">' + esc(r.note) + '</p>' : '') +
       '<div><p class="kicker">Préparation</p><ol style="margin:6px 0 0;padding-left:20px">' + (r.steps || []).map((s) => '<li>' + esc(s) + '</li>').join('') + '</ol></div>' +
@@ -762,7 +764,8 @@
         '<label style="flex:0 1 200px">Repas<select data-change="r-filter">' + opts([['', 'Tous']].concat(N.MEALS.map((m) => [m.id, m.label])), ui.rFilterMeal || '') + '</select></label>' +
         '<label style="flex:0 1 220px">Collection<select data-change="r-collection">' + opts([['', 'Toutes'], ['app', 'Recettes de l\'app'], ['user', 'Mes recettes']].concat(Object.keys(cols).map((c) => [c, c + ' (' + cols[c] + ')'])), ui.rCollection || '') + '</select></label></div>' +
         (ui.rCollection && cols[ui.rCollection] ? '<div><button class="btn sm ghost danger" data-action="r-col-remove" data-c="' + esc(ui.rCollection) + '">Retirer la collection « ' + esc(ui.rCollection) + ' »</button></div>' : '') +
-        '<div class="cards" id="recipe-list">' + (list.map(recipeCard).join('') || '<p class="muted">Aucune recette ne correspond.</p>') + '</div></section>' +
+        '<div class="chips" role="group" aria-label="Catégorie">' + [['', 'Toutes']].concat(R.CATEGORIES.map((c) => [c.id, c.label])).map((c) => { const n = c[0] ? R.all(S).filter((r) => R.category(r) === c[0]).length : R.all(S).length; return n ? '<button type="button" class="chip" data-action="r-cat" data-c="' + c[0] + '" aria-pressed="' + ((ui.rCat || '') === c[0]) + '">' + esc(c[1]) + ' <span class="muted">' + n + '</span></button>' : ''; }).join('') + '</div>' +
+        '<div id="recipe-list">' + recipeListHTML(list) + '</div></section>' +
       legal + '</div>';
   }
 
@@ -1000,7 +1003,8 @@
       }
       case 'r-open': ui.recipe = el.dataset.id; ui.rIngsFor = null; ui.editor = null; if (el.dataset.go) location.hash = '#/' + el.dataset.go; else { render(); window.scrollTo({ top: 0 }); } break;
       case 'r-close': ui.recipe = null; ui.rIngsFor = null; render(); break;
-      case 'r-photo-del': FD.photos.removeRecipePhoto(el.dataset.id).then(() => { toast('Photo retirée.'); fillRecipePhotos(); }); break;
+      case 'r-cat': ui.rCat = el.dataset.c; render(); break;
+      case 'r-photo-del': FD.photos.removeRecipePhoto(el.dataset.id).then(() => { toast('Photo retirée : illustration rétablie.'); render(); }); break;
       case 'r-col-remove': {
         const c = el.dataset.c;
         if (!confirm('Retirer toutes les recettes de la collection « ' + c + ' » ?')) break;
@@ -1281,7 +1285,7 @@
       ui.rQuery = el.value;
       const list = filteredRecipes();
       const box = document.getElementById('recipe-list');
-      if (box) { box.innerHTML = list.map(recipeCard).join('') || '<p class="muted">Aucune recette ne correspond.</p>'; fillRecipePhotos(); }
+      if (box) { box.innerHTML = recipeListHTML(list); fillRecipePhotos(); }
     }
     if (el.dataset.input === 'edq') {
       ui.edQuery = el.value;
@@ -1423,8 +1427,18 @@
     }
   });
 
+  /** Liste des recettes regroupée par catégorie. */
+  function recipeListHTML(list) {
+    if (!list.length) return '<p class="muted">Aucune recette ne correspond.</p>';
+    return R.CATEGORIES.map((c) => {
+      const items = list.filter((r) => R.category(r) === c.id);
+      return items.length ? '<h3 class="cat-title">' + esc(c.label) + ' <span class="muted small">' + items.length + '</span></h3><div class="cards">' + items.map(recipeCard).join('') + '</div>' : '';
+    }).join('');
+  }
+
   function filteredRecipes() {
     return R.all(S).filter((r) => {
+      if (ui.rCat && R.category(r) !== ui.rCat) return false;
       if (ui.rFilterMeal && !r.meals.includes(ui.rFilterMeal)) return false;
       if (ui.rQuery && !U.norm(r.name).includes(U.norm(ui.rQuery))) return false;
       const src = r.source || {};
@@ -1446,13 +1460,12 @@
       const url = (b) => { const u = URL.createObjectURL(b); ui.recipePhotoUrls.push(u); return u; };
       document.querySelectorAll('[data-photo]').forEach((el) => {
         const b = map[el.dataset.photo];
-        if (b) { el.style.backgroundImage = 'url(' + url(b) + ')'; el.classList.add('has-photo'); el.textContent = ''; }
+        if (b) { el.style.backgroundImage = 'url(' + url(b) + ')'; el.classList.add('has-photo'); el.innerHTML = ''; }
       });
       const big = document.getElementById('recipe-photo');
       if (big) {
         const b = map[big.dataset.id];
-        big.innerHTML = b ? '<img src="' + url(b) + '" alt="Photo de la recette">' : '';
-        big.hidden = !b;
+        if (b) { big.innerHTML = '<img src="' + url(b) + '" alt="Photo de la recette">'; const note = document.getElementById('recipe-art-note'); if (note) note.hidden = true; }
       }
     }).catch(() => {});
   }

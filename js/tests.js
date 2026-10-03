@@ -205,6 +205,16 @@ FD.tests = (function () {
       }
     },
     {
+      name: 'Recettes — catégories et équivalence cru/cuit (150 g de riz cuit ≈ 65 g cru)',
+      run: () => {
+        const s = FD.storage.defaultState();
+        const eq = FD.recipes.cookEquivalent(s, { foodId: 'riz-cuit', qty: 150, unit: 'g' });
+        const cat = (id) => FD.recipes.category(FD.recipes.byId(s, id));
+        const ok = eq && eq.state === 'cru' && eq.grams === 65 && cat('r-chili') === 'prepmeal' && cat('r-skyr-banane') === 'snack' && cat('r-skyr-bowl') === 'petitdej' && cat('r-poulet-riz') === 'repas';
+        return { ok, title: eq ? '≈ ' + eq.grams + ' g ' + eq.state : 'pas d\'équivalence' };
+      }
+    },
+    {
       name: 'Prix — un prix saisi remplace le prix indicatif ; coût proratisé au poids',
       run: () => {
         const s = FD.storage.defaultState();
