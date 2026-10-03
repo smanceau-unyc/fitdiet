@@ -7,7 +7,7 @@
 window.FD = window.FD || {};
 
 FD.photos = (function () {
-  const DB = 'fitdiet-coach-photos', STORE = 'photos';
+  const DB = 'fitdiet-coach-photos', STORE = 'photos', RSTORE = 'recipes';
   const VIEWS = { face: 'Face', profil: 'Profil', dos: 'Dos' };
   let dbp = null;
 
@@ -15,18 +15,22 @@ FD.photos = (function () {
     if (dbp) return dbp;
     dbp = new Promise((resolve, reject) => {
       if (!window.indexedDB) return reject(new Error('Ce navigateur ne permet pas le stockage local des photos.'));
-      const req = indexedDB.open(DB, 1);
-      req.onupgradeneeded = () => { const s = req.result.createObjectStore(STORE, { keyPath: 'id' }); s.createIndex('date', 'date'); };
+      const req = indexedDB.open(DB, 2);
+      req.onupgradeneeded = () => {
+        const d = req.result;
+        if (!d.objectStoreNames.contains(STORE)) { const s = d.createObjectStore(STORE, { keyPath: 'id' }); s.createIndex('date', 'date'); }
+        if (!d.objectStoreNames.contains(RSTORE)) d.createObjectStore(RSTORE, { keyPath: 'id' });
+      };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error || new Error('Stockage des photos indisponible.'));
     });
     return dbp;
   }
 
-  function tx(mode, fn) {
+  function tx(mode, fn, store) {
     return db().then((d) => new Promise((resolve, reject) => {
-      const t = d.transaction(STORE, mode);
-      const s = t.objectStore(STORE);
+      const t = d.transaction(store || STORE, mode);
+      const s = t.objectStore(store || STORE);
       const out = fn(s);
       t.oncomplete = () => resolve(out && out.result !== undefined ? out.result : out);
       t.onerror = () => reject(t.error);
@@ -113,5 +117,13 @@ FD.photos = (function () {
     return n;
   }
 
-  return { VIEWS, add, list, remove, comparison, exportAll, importAll };
+  /* ---- Photos de recettes (une par recette, stockée localement) ---- */
+  async function setRecipePhoto(recipeId, file) {
+    const blob = await shrink(file, 900);
+    await tx('readwrite', (s) => s.put({ id: recipeId, blob, addedAt: new Date().toISOString() }), RSTORE);
+  }
+  function recipePhotos() { return tx('readonly', (s) => s.getAll(), RSTORE).then((r) => r || []); }
+  function removeRecipePhoto(recipeId) { return tx('readwrite', (s) => s.delete(recipeId), RSTORE); }
+
+  return { VIEWS, add, list, remove, comparison, exportAll, importAll, setRecipePhoto, recipePhotos, removeRecipePhoto };
 })();

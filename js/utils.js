@@ -84,14 +84,38 @@ FD.utils = (function () {
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
+  const UNICODE_FRAC = { '¼': 0.25, '½': 0.5, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3, '⅛': 0.125 };
+
+  /** Lit un nombre saisi : « 1,5 », « 1.5 », « 1/2 », « ½ », « 1 1/2 », « 1½ ». */
   function parseNum(v) {
     if (v === null || v === undefined || v === '') return null;
-    const n = parseFloat(String(v).replace(',', '.'));
-    return isNaN(n) ? null : n;
+    let t = String(v).trim().replace(',', '.');
+    let extra = 0;
+    const uf = t.match(/[¼½¾⅓⅔⅛]/);
+    if (uf) { extra = UNICODE_FRAC[uf[0]]; t = t.replace(uf[0], ' ').trim(); if (!t) return extra; }
+    const m = t.match(/^(\d+(?:\.\d+)?)?\s*(?:(\d+)\s*\/\s*(\d+))?$/);
+    if (m && (m[1] || m[2])) {
+      const whole = m[1] ? parseFloat(m[1]) : 0;
+      const frac = m[2] && +m[3] ? +m[2] / +m[3] : 0;
+      return whole + frac + extra;
+    }
+    const n = parseFloat(t);
+    return isNaN(n) ? null : n + extra;
+  }
+
+  /** Affiche une quantité de pièces avec fractions courantes : 0,5 → ½, 1,5 → 1 ½, 0,25 → ¼. */
+  function frac(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    const whole = Math.floor(n + 1e-9), rest = n - whole;
+    const map = [[0.25, '¼'], [1 / 3, '⅓'], [0.5, '½'], [2 / 3, '⅔'], [0.75, '¾']];
+    const hit = map.find((x) => Math.abs(rest - x[0]) < 0.02);
+    if (rest < 0.02) return String(whole);
+    if (hit) return (whole ? whole + ' ' : '') + hit[1];
+    return num(n, 2).replace(/,?0+$/, '');
   }
 
   return {
     WEEK_ORDER, WEEKDAY_SHORT, toISO, parseISO, todayISO, addDays, diffDays, weekdayKey, mondayOf,
-    isoWeekKey, frDate, frShort, num, roundTo, kcal, mean, clamp, esc, norm, uid, parseNum
+    isoWeekKey, frDate, frShort, num, roundTo, kcal, mean, clamp, esc, norm, uid, parseNum, frac
   };
 })();

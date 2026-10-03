@@ -145,8 +145,14 @@ FD.ciqual = (function () {
    * (et le même état cru/cuit quand il est connu). Sans correspondance sûre, rien n'est proposé :
    * l'utilisateur choisit lui-même.
    */
+  /** Aliments Ciqual disponibles : import de l'utilisateur s'il existe, sinon table intégrée. */
+  function pool(state) {
+    const imported = (state.customFoods || []).filter((f) => f.source === 'ciqual');
+    return imported.length ? imported : FD.foods.ciqualBuiltin();
+  }
+
   function suggestLinks(state) {
-    const ciq = (state.customFoods || []).filter((f) => f.source === 'ciqual');
+    const ciq = pool(state);
     if (!ciq.length) return [];
     return (window.FD_FOODS || []).map((d) => {
       const words = U.norm(MATCH[d.id] || d.base).replace(/[%(),]/g, ' ').split(/\s+/).filter((w) => w.length >= 3 || /^\d+$/.test(w));
@@ -160,7 +166,8 @@ FD.ciqual = (function () {
         sc -= n.length / 100; // préférer l'intitulé le plus générique
         if (sc > bestScore) { bestScore = sc; best = c; }
       });
-      return { demo: d, suggestion: best, linked: (state.foodLinks || {})[d.id] || null };
+      const eff = FD.foods.byId(state, d.id);
+      return { demo: d, suggestion: best, effective: eff && eff.source === 'ciqual' ? eff : null, userSet: Object.prototype.hasOwnProperty.call(state.foodLinks || {}, d.id) };
     });
   }
 
@@ -168,8 +175,8 @@ FD.ciqual = (function () {
   function search(state, q, n) {
     const t = U.norm(q).split(/\s+/).filter(Boolean);
     if (!t.length) return [];
-    return (state.customFoods || []).filter((f) => f.source === 'ciqual' && t.every((w) => U.norm(f.base).includes(w))).slice(0, n || 20);
+    return pool(state).filter((f) => t.every((w) => U.norm(f.base).includes(w))).sort((a, b) => a.base.length - b.base.length).slice(0, n || 20);
   }
 
-  return { parseCSV, parse, store, suggestLinks, search, findCols };
+  return { parseCSV, parse, store, suggestLinks, search, pool, findCols, catFromGroup, stateFromName };
 })();

@@ -23,6 +23,7 @@ FD.recipes = (function () {
     const s = r.source || SOURCE_APP;
     let t = s.label || 'Source inconnue';
     if (s.author) t += ' — ' + s.author;
+    if (s.ref) t += ', ' + s.ref;
     if (s.url) t += ' — ' + s.url;
     if (s.date) t += ' (' + U.frShort(s.date.slice(0, 10)) + ')';
     return t;
@@ -53,8 +54,12 @@ FD.recipes = (function () {
   }
 
   /** Arrondi d'une quantité selon l'unité (pas de fausse précision). */
-  function roundQty(qty, unit) {
-    if (FD.foods.isPiece(unit)) return Math.max(1, Math.round(qty));
+  function roundQty(qty, unit, food) {
+    if (FD.foods.isPiece(unit)) {
+      // Les grosses pièces (avocat, mangue, courgette…) peuvent se couper en deux ; pas les œufs.
+      if (food && food.unitG >= 100) return Math.max(0.5, Math.round(qty * 2) / 2);
+      return Math.max(1, Math.round(qty));
+    }
     if (unit === 'portion') return Math.max(0.5, Math.round(qty * 2) / 2);
     const step = qty < 30 ? 5 : qty < 200 ? 10 : 25;
     return Math.max(step, Math.round(qty / step) * step);
@@ -98,7 +103,7 @@ FD.recipes = (function () {
     }
     const scaled = ings.map((i) => {
       const k = i.role === 'prot' ? a : i.role === 'carb' ? c : 1;
-      return { foodId: i.foodId, unit: i.unit, role: i.role, qty: roundQty(i.qty * k, i.unit) };
+      return { foodId: i.foodId, unit: i.unit, role: i.role, qty: roundQty(i.qty * k, i.unit, FD.foods.byId(state, i.foodId)) };
     });
     const res = compute(state, { servings: 1 }, scaled);
     return { ingredients: scaled, totals: res.total, factors: { prot: a, carb: c }, variable: res.variable };
@@ -143,7 +148,7 @@ FD.recipes = (function () {
     const oldBase = FD.foods.toBaseQty(oldF, ing.qty, ing.unit) || 0;
     const newBase = FD.foods.toBaseQty(newF, qty, unit) || 0;
     if (oldBase && newBase > oldBase * 5) qty = qty * (oldBase * 5) / newBase;
-    return { foodId: newFoodId, unit, role: ing.role, qty: roundQty(qty, unit) };
+    return { foodId: newFoodId, unit, role: ing.role, qty: roundQty(qty, unit, newF) };
   }
 
   /* ---------------- Filtres : exclusions, allergies, régime ---------------- */
@@ -190,5 +195,27 @@ FD.recipes = (function () {
     return out.sort((a, b) => a.error - b.error).slice(0, n || 4);
   }
 
-  return { all, byId, sourceLabel, compute, roundQty, perServing, fit, fitError, substitutesFor, substitute, foodAllowed, recipeAllowed, suggest, SOURCE_APP };
+  /**
+   * Importe un fichier de recettes ({ type: 'fitdiet-coach-recipes', foods, recipes }).
+   * Les aliments et recettes de même identifiant sont remplacés (réimport sans doublon).
+   */
+  function importCollection(state, data) {
+    if (!data || data.type !== 'fitdiet-coach-recipes' || !Array.isArray(data.recipes)) throw new Error('Ce fichier n\'est pas un fichier de recettes FitDiet Coach.');
+    const foods = Array.isArray(data.foods) ? data.foods : [];
+    const fIds = new Set(foods.map((f) => f.id));
+    state.customFoods = (state.customFoods || []).filter((f) => !fIds.has(f.id)).concat(foods);
+    const rIds = new Set(data.recipes.map((r) => r.id));
+    state.recipes = (state.recipes || []).filter((r) => !rIds.has(r.id)).concat(data.recipes);
+    const missing = [];
+    data.recipes.forEach((r) => r.ingredients.forEach((i) => { if (!FD.foods.byId(state, i.foodId) && !missing.includes(i.foodId)) missing.push(i.foodId); }));
+    return { recipes: data.recipes.length, foods: foods.length, collection: data.collection || null, missing };
+  }
+
+  function collections(state) {
+    const c = {};
+    (state.recipes || []).forEach((r) => { const k = r.source && r.source.collection; if (k) c[k] = (c[k] || 0) + 1; });
+    return c;
+  }
+
+  return { importCollection, collections, all, byId, sourceLabel, compute, roundQty, perServing, fit, fitError, substitutesFor, substitute, foodAllowed, recipeAllowed, suggest, SOURCE_APP };
 })();

@@ -19,6 +19,7 @@
     route: 'tableau', jDate: today(), query: '', results: [], pick: null, variantId: null, qty: '100', unit: 'g', meal: defaultMeal(),
     tab: 'base', off: { query: '', loading: false, results: [], error: null }, subEntry: null, trackDate: today(),
     sug: [], recipe: null, rIngs: null, rIngsFor: null, rServings: 1, rMeal: null, rQuery: '', rFilterMeal: '', editor: null, edQuery: '', edResults: [],
+    rCollection: '', recipePhotoUrls: [],
     ciqLabel: 'CIQUAL', ciqManual: null, ciqQuery: '', scan: { msg: null, error: null, loading: false }, photoView: 'face', photoUrls: []
   };
 
@@ -157,7 +158,7 @@
       if (f.alcohol) sub += '<span class="small muted">Calories incluant l\'alcool (non couvert par les macros)</span>';
     }
     let html = '<div class="entry"><div class="name"><span>' + esc(e.free ? e.name : F.displayName(f)) + '</span>' + sub + '</div>';
-    html += e.free ? '<span></span>' : '<label class="sr-only" for="q-' + e.id + '">Quantité</label><input id="q-' + e.id + '" type="text" inputmode="decimal" value="' + U.num(e.qty, e.qty % 1 ? 1 : 0) + '" data-change="entry-qty" data-id="' + e.id + '">';
+    html += e.free ? '<span></span>' : '<label class="sr-only" for="q-' + e.id + '">Quantité</label><input id="q-' + e.id + '" type="text" inputmode="decimal" value="' + (F.isPiece(e.unit) || e.unit === 'portion' ? U.frac(e.qty) : U.num(e.qty, e.qty % 1 ? 1 : 0)) + '" data-change="entry-qty" data-id="' + e.id + '">';
     html += '<span class="vals">' + U.num(v.kcal) + ' kcal · P ' + U.num(v.p) + ' · G ' + U.num(v.g) + ' · L ' + U.num(v.l) + '</span>';
     html += '<span class="inline" style="gap:4px;justify-content:flex-end">' +
       (e.free ? '' : '<button class="btn sm ghost" data-action="entry-sub" data-id="' + e.id + '">Remplacer</button>') +
@@ -195,9 +196,17 @@
     html += '<div class="form-grid"><label>Quantité<input type="text" inputmode="decimal" id="pick-qty" value="' + esc(ui.qty) + '" data-change="pick-qty"></label>' +
       '<label>Unité<select data-change="pick-unit">' + opts(F.unitsFor(unitsSrc).map((u) => [u.id, u.label]), ui.unit) + '</select></label>' +
       '<label>Repas<select data-change="pick-meal">' + opts(N.MEALS.map((m) => [m.id, m.label]), ui.meal) + '</select></label></div>';
+    if (F.isPiece(ui.unit) || ui.unit === 'portion') {
+      const cur = U.parseNum(ui.qty);
+      html += '<div class="inline" style="gap:6px" role="group" aria-label="Quantité rapide">' + [[0.25, '¼'], [0.5, '½'], [0.75, '¾'], [1, '1'], [1.5, '1 ½'], [2, '2']].map((c) =>
+        '<button type="button" class="btn sm' + (cur !== null && Math.abs(cur - c[0]) < 0.01 ? ' primary' : '') + '" data-action="qty-chip" data-v="' + c[0] + '">' + c[1] + '</button>').join('') + '</div>' +
+        '<p class="small muted">Tu peux aussi écrire 1/2, ½ ou 1 1/2 dans la quantité.</p>';
+    }
     if (f) {
       const v = F.compute(f, U.parseNum(ui.qty) || 0, ui.unit);
       html += v ? '<p class="small">' + (ui.unit !== 'g' && ui.unit !== 'ml' ? '≈ ' + U.num(v.grams) + (f.basis === '100ml' ? ' ml' : ' g') + ' · ' : '') + '≈ ' + U.num(v.kcal) + ' kcal · P ' + U.num(v.p, 1) + ' g · G ' + U.num(v.g, 1) + ' g · L ' + U.num(v.l, 1) + ' g · fibres ' + U.num(v.fib, 1) + ' g</p>' : '<p class="small" style="color:var(--warn)">Cette unité n\'est pas disponible pour cet aliment.</p>';
+      if (f.portionNote && (F.isPiece(ui.unit) || ui.unit === 'portion')) html += '<p class="small muted">Portion type indicative : ajuste en grammes si tu connais le poids.</p>';
+      if (f.unitsFrom) html += '<p class="small muted">Poids par pièce : moyenne de la base (« ' + esc(f.unitsFrom) + ' »), l\'étiquette n\'en donne pas.</p>';
       html += '<p class="small muted">' + esc(F.sourceLabel(f)) + ' · valeurs pour ' + (f.basis === '100ml' ? '100 ml' : '100 g') + (f.variable ? ' · valeur indicative — vérifier l\'étiquette du produit' : '') + '</p>';
     } else html += '<p class="small" style="color:var(--warn)">Précise l\'état de l\'aliment : les valeurs crues et cuites sont très différentes.</p>';
     html += '<div><button class="btn primary" data-action="add-food"' + (f ? '' : ' disabled') + '>Ajouter au journal</button></div></div>';
@@ -293,11 +302,12 @@
     }).join('');
 
     const typeRows = S.sessionTypes.map((t) => {
-      const m = C.macrosFor(S, t.kcal + p.kcalOffset, t.fat);
+      const m = C.macrosFor(S, t.kcal + p.kcalOffset, C.fatFor(S, t));
+      const fixedFat = p.fatG > 0;
       return '<tr><td><input type="text" value="' + esc(t.label) + '" data-change="type-field" data-id="' + esc(t.id) + '" data-field="label" aria-label="Nom"></td>' +
         '<td><select data-change="type-field" data-id="' + esc(t.id) + '" data-field="cat" aria-label="Catégorie">' + opts([['force', 'Force'], ['run_hard', 'Course intense/longue'], ['cardio', 'Cardio modéré'], ['repos', 'Repos / récup']], t.cat) + '</select></td>' +
         '<td class="num"><input type="number" step="10" value="' + t.kcal + '" data-change="type-field" data-id="' + esc(t.id) + '" data-field="kcal" aria-label="Calories" style="width:90px"></td>' +
-        '<td class="num"><input type="number" value="' + t.fat + '" data-change="type-field" data-id="' + esc(t.id) + '" data-field="fat" aria-label="Lipides" style="width:72px"></td>' +
+        '<td class="num">' + (fixedFat ? p.fatG + ' <span class="small muted">(profil)</span>' : '<input type="number" value="' + t.fat + '" data-change="type-field" data-id="' + esc(t.id) + '" data-field="fat" aria-label="Lipides" style="width:72px">') + '</td>' +
         '<td class="num">' + p.proteinG + '</td><td class="num">≈ ' + U.roundTo(m.g, 5) + '</td></tr>';
     }).join('');
 
@@ -312,7 +322,7 @@
       '<section class="card"><div class="card-head"><h2>Types de séance</h2><button class="btn sm ghost" data-action="restore-types">Valeurs par défaut</button></div>' +
         (p.kcalOffset ? '<div class="alert warn">Ajustement du coach en cours : ' + signed(p.kcalOffset, 0, 'kcal') + ' sur toutes les cibles. <button class="btn sm" data-action="reset-offset">Annuler l\'ajustement</button></div>' : '') +
         '<div class="table-wrap"><table><thead><tr><th>Séance</th><th>Catégorie</th><th class="num">kcal</th><th class="num">Lipides g</th><th class="num">Protéines g</th><th class="num">Glucides g</th></tr></thead><tbody>' + typeRows + '</tbody></table></div>' +
-        '<p class="small muted">Les glucides prennent les calories restantes après protéines et lipides. Les catégories orientent les conseils (pré/post-séance) et l\'estimation de dépense.</p></section>' +
+        '<p class="small muted">Les glucides prennent les calories restantes après protéines et lipides.' + (p.fatG > 0 ? ' Lipides fixés à ' + p.fatG + ' g/jour dans ton profil : vide ce champ pour les régler séance par séance.' : '') + ' Les catégories orientent les conseils (pré/post-séance) et l\'estimation de dépense.</p></section>' +
       legal + '</div>';
   }
 
@@ -538,9 +548,11 @@
           sel('Objectif', 'goal', [['perte', 'Perte de graisse'], ['maintien', 'Maintien'], ['prise', 'Prise de masse'], ['recompo', 'Recomposition']], p.goal) +
           sel('Rythme', 'pace', [['lent', 'Lent (≈ −10 %)'], ['modere', 'Modéré (≈ −15 %)'], ['rapide', 'Rapide (≈ −20 %)']], p.pace) +
           field('Plancher calorique (kcal)', 'kcalMin', p.kcalMin, 'number') + field('Plafond calorique (kcal)', 'kcalMax', p.kcalMax, 'number') +
-          field('Protéines (g/jour)', 'proteinG', p.proteinG, 'number') + field('Fibres (g/jour)', 'fiberG', p.fiberG, 'number') +
+          field('Protéines (g/jour)', 'proteinG', p.proteinG, 'number') +
+          field('Lipides (g/jour)', 'fatG', p.fatG > 0 ? p.fatG : '', 'number', ' placeholder="selon la séance"') +
+          field('Fibres (g/jour)', 'fiberG', p.fiberG, 'number') +
           sel('Repas par jour', 'mealsPerDay', [[3, '3'], [4, '4'], [5, '5']], p.mealsPerDay) +
-        '</div><p class="small muted">Les calories par type de séance se règlent dans Semaine. Le plancher et le plafond servent de garde-fous au coach.</p></fieldset>' +
+        '</div><p class="small muted">Les calories par type de séance se règlent dans Semaine. Protéines et lipides sont fixes chaque jour ; les glucides prennent le reste et varient avec la séance. Laisse les lipides vides pour les régler séance par séance. Le plancher et le plafond servent de garde-fous au coach.</p></fieldset>' +
         '<fieldset><legend>Alimentation</legend><div class="form-grid">' +
           sel('Régime', 'diet', [['omnivore', 'Omnivore'], ['pescetarien', 'Pescétarien'], ['vegetarien', 'Végétarien'], ['vegetalien', 'Végétalien'], ['sans-porc', 'Sans porc']], p.diet) +
           field('Allergies', 'allergies', p.allergies) + field('Intolérances', 'intolerances', p.intolerances) + field('Aliments exclus', 'excluded', p.excluded) + field('Aliments préférés', 'preferred', p.preferred) +
@@ -560,8 +572,8 @@
           '<p>Selon l\'objectif seul : ≈ ' + U.kcal(g.low) + '–' + U.kcal(g.high) + ' kcal (' + (g.pct ? signed(Math.round(g.pct * 100), 0) + ' %' : 'maintenance') + ').</p>' +
           '<p>Ta fourchette choisie : <strong>' + U.num(p.kcalMin) + '–' + U.num(p.kcalMax) + ' kcal</strong>, soit un écart estimé de ' + Math.round((1 - p.kcalMax / t.mid) * 100) + ' à ' + Math.round((1 - p.kcalMin / t.mid) * 100) + ' % sous la dépense.</p>' +
           '<div class="table-wrap"><table><thead><tr><th>Exemple</th><th class="num">kcal</th><th class="num">P</th><th class="num">G</th><th class="num">L</th></tr></thead><tbody>' +
-          examples.map((ty) => { const m = C.macrosFor(S, ty.kcal + p.kcalOffset, ty.fat); return '<tr><td>' + esc(ty.label) + '</td><td class="num">' + U.kcal(m.kcal) + '</td><td class="num">' + m.p + ' g · ' + Math.round(m.pct.p) + ' %</td><td class="num">' + U.roundTo(m.g, 5) + ' g · ' + Math.round(m.pct.g) + ' %</td><td class="num">' + m.l + ' g · ' + Math.round(m.pct.l) + ' %</td></tr>'; }).join('') +
-          '</tbody></table></div><p class="small muted">Protéines ' + U.num(p.proteinG / p.weight, 1) + ' g/kg (plage 1,6–2,2) · lipides ' + U.num(p.fatPerKgMin, 1) + '–' + U.num(p.fatPerKgMax, 1) + ' g/kg conseillés.</p></section>' +
+          examples.map((ty) => { const m = C.macrosFor(S, ty.kcal + p.kcalOffset, C.fatFor(S, ty)); return '<tr><td>' + esc(ty.label) + '</td><td class="num">' + U.kcal(m.kcal) + '</td><td class="num">' + m.p + ' g · ' + Math.round(m.pct.p) + ' %</td><td class="num">' + U.roundTo(m.g, 5) + ' g · ' + Math.round(m.pct.g) + ' %</td><td class="num">' + m.l + ' g · ' + Math.round(m.pct.l) + ' %</td></tr>'; }).join('') +
+          '</tbody></table></div><p class="small muted">Protéines ' + U.num(p.proteinG / p.weight, 1) + ' g/kg (plage 1,6–2,2) · lipides ' + (p.fatG > 0 ? U.num(p.fatG / p.weight, 2) + ' g/kg (' + p.fatG + ' g/jour) · plage conseillée ' : '') + U.num(p.fatPerKgMin, 1) + '–' + U.num(p.fatPerKgMax, 1) + ' g/kg.</p></section>' +
       '</div></div>' + legal + '</div>';
   }
 
@@ -595,8 +607,8 @@
         '<label>Protéines minimales (% objectif)<input type="number" name="proteinMin" value="' + c.proteinMin + '"></label>' +
       '</div><div><button class="btn primary" type="submit">Enregistrer les réglages</button></div></form>' +
       '<section class="card"><h2>Sources des données</h2>' +
-        '<dl class="kv"><dt>Démo</dt><dd>Base d\'aliments de démonstration : ordres de grandeur saisis manuellement, <strong>non issus</strong> d\'un export Ciqual. Chaque aliment de cette base est marqué « Démo ».</dd>' +
-        '<dt>CIQUAL / ANSES</dt><dd>Table de composition des aliments génériques français (<a href="https://ciqual.anses.fr/" target="_blank" rel="noopener">ciqual.anses.fr</a>). ' + (S.meta.ciqual ? U.num(S.meta.ciqual.count) + ' aliments importés depuis ton fichier (' + esc(S.meta.ciqual.version || 'CIQUAL') + ').' : 'Aucun fichier importé : aucune donnée n\'est attribuée à Ciqual.') + '</dd>' +
+        '<dl class="kv"><dt>Valeurs indicatives</dt><dd>Les quelques aliments de base sans équivalent Ciqual (skyr, whey, crème de riz) gardent des ordres de grandeur saisis à la main, marqués « Démo ».</dd>' +
+        '<dt>CIQUAL / ANSES</dt><dd>Table de composition des aliments génériques français (<a href="https://ciqual.anses.fr/" target="_blank" rel="noopener">ciqual.anses.fr</a>). ' + (S.meta.ciqual ? U.num(S.meta.ciqual.count) + ' aliments importés depuis ton fichier (' + esc(S.meta.ciqual.version || 'CIQUAL') + ').' : (window.FD_CIQUAL ? esc(window.FD_CIQUAL.version) + ' intégrée hors ligne (' + U.num(window.FD_CIQUAL.rows.length) + ' aliments), Licence Ouverte Etalab 2.0. Données converties depuis l\'export public github.com/OlivierFitter/ciqual_2025_complete.' : 'Non chargée.')) + '</dd>' +
         '<dt>Recettes</dt><dd>Recettes créées par l\'application ou saisies par toi (avec auteur et URL si elles viennent d\'ailleurs). Aucune recette n\'est récupérée automatiquement sur des sites tiers.</dd>' +
         '<dt>Open Food Facts</dt><dd>Produits de marque, recherche par nom ou code-barres (<a href="https://world.openfoodfacts.org/" target="_blank" rel="noopener">openfoodfacts.org</a>). Chaque produit importé garde son code-barres comme référence.</dd>' +
         '<dt>Saisie utilisateur</dt><dd>Repas libres et estimations saisies à la main.</dd></dl></section>' +
@@ -664,36 +676,40 @@
   function recipeCard(r) {
     const c = R.compute(S, r);
     const allowed = R.recipeAllowed(S, r);
-    return '<article class="recipe-card"><div class="recipe-thumb" aria-hidden="true">' + esc(r.name.charAt(0)) + '</div><div class="stack" style="gap:4px">' +
+    return '<article class="recipe-card"><div class="recipe-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + esc(r.name.charAt(0)) + '</div><div class="stack" style="gap:4px">' +
       '<strong>' + esc(r.name) + '</strong><span class="small muted">' + r.meals.map((m) => MEAL_LABEL[m]).join(', ') + ' · ' + ((r.prep || 0) + (r.cook || 0)) + ' min · ' + r.servings + ' portion' + (r.servings > 1 ? 's' : '') + '</span>' +
       '<span class="small">' + macroLine(c.per) + ' / portion</span>' +
       (allowed.ok ? '' : '<span class="small" style="color:var(--warn)">Exclue : ' + esc(allowed.reason) + '</span>') +
-      '<div class="inline" style="gap:6px"><button class="btn sm" data-action="r-open" data-id="' + esc(r.id) + '">Voir la recette</button><span class="badge">' + esc(r.source && r.source.type === 'user' ? 'Ma recette' : r.source && r.source.type === 'external' ? 'Externe' : 'App') + '</span></div></div></article>';
+      '<div class="inline" style="gap:6px"><button class="btn sm" data-action="r-open" data-id="' + esc(r.id) + '">Voir la recette</button><span class="badge">' + esc(r.source && r.source.collection ? r.source.collection + (r.source.ref ? ' · ' + r.source.ref.replace('page ', 'p. ') : '') : r.source && r.source.type === 'user' ? 'Ma recette' : r.source && r.source.type === 'external' ? 'Externe' : 'App') + '</span></div></div></article>';
   }
 
   function recipeDetail(r) {
     if (!ui.rIngs || ui.rIngsFor !== r.id) { ui.rIngs = r.ingredients.map((i) => Object.assign({}, i)); ui.rIngsFor = r.id; ui.rServings = r.servings; }
     const ratio = ui.rServings / r.servings;
-    const ings = ui.rIngs.map((i) => Object.assign({}, i, { qty: R.roundQty(i.qty * ratio, i.unit) }));
+    const ings = ui.rIngs.map((i) => Object.assign({}, i, { qty: R.roundQty(i.qty * ratio, i.unit, F.byId(S, i.foodId)) }));
     const c = R.compute(S, { servings: ui.rServings }, ings);
     const changed = JSON.stringify(ui.rIngs.map((i) => [i.foodId, i.qty])) !== JSON.stringify(r.ingredients.map((i) => [i.foodId, i.qty]));
     const isUser = r.source && r.source.type === 'user';
     const rows = c.lines.map((l, idx) => {
       const subs = R.substitutesFor(S, l.ing.foodId);
-      return '<tr><td>' + esc(F.displayName(l.food)) + (l.food.variable ? '<br><span class="small" style="color:var(--warn)">valeur indicative</span>' : '') + '<br><span class="small muted">' + esc((F.SOURCES[l.food.source] || F.SOURCES.demo).short) + '</span></td>' +
+      return '<tr><td>' + esc(F.displayName(l.food)) + (l.ing.note ? '<br><span class="small muted">' + esc(l.ing.note) + '</span>' : '') + (l.food.variable ? '<br><span class="small" style="color:var(--warn)">valeur indicative</span>' : '') + '<br><span class="small muted">' + esc((F.SOURCES[l.food.source] || F.SOURCES.demo).short) + '</span></td>' +
         '<td class="num">' + esc(F.qtyLabel(l.food, l.ing.qty, l.ing.unit)) + '</td><td class="num">' + U.num(l.v.kcal) + '</td><td class="num">' + U.num(l.v.p, 1) + '</td><td class="num">' + U.num(l.v.g, 1) + '</td><td class="num">' + U.num(l.v.l, 1) + '</td><td class="num">' + U.num(l.v.fib, 1) + '</td>' +
         '<td>' + (subs.length ? '<label class="sr-only" for="rs-' + idx + '">Remplacer</label><select id="rs-' + idx + '" data-change="r-sub" data-idx="' + idx + '" style="min-width:140px"><option value="">Remplacer…</option>' + subs.map((s) => '<option value="' + esc(s.id) + '">' + esc(F.displayName(s)) + '</option>').join('') + '</select>' : '') + '</td></tr>';
     }).join('');
     return '<section class="card" aria-label="Recette"><div class="card-head"><h2>' + esc(r.name) + '</h2><button class="btn sm ghost" data-action="r-close">Fermer</button></div>' +
-      '<div class="inline small muted"><span>Préparation ' + (r.prep || 0) + ' min</span><span>Cuisson ' + (r.cook || 0) + ' min</span><span>Difficulté : ' + esc(r.difficulty || 'facile') + '</span>' +
+      '<div class="recipe-photo" id="recipe-photo" data-id="' + esc(r.id) + '"></div>' +
+      '<div class="inline"><label class="btn sm" style="flex-direction:row">' + 'Ajouter / changer la photo<input type="file" accept="image/*" data-change="r-photo" data-id="' + esc(r.id) + '" class="sr-only"></label><button class="btn sm ghost" data-action="r-photo-del" data-id="' + esc(r.id) + '">Retirer la photo</button><span class="small muted">Ta photo reste sur cet appareil.</span></div>' +
+      '<div class="inline small muted"><span>Préparation ' + (r.prep || 0) + ' min</span><span>Cuisson ' + (r.cook || 0) + ' min</span><span>Difficulté : ' + esc(r.difficulty || 'facile') + '</span>' + (r.keep ? '<span>Conservation : ' + esc(r.keep) + '</span>' : '') +
       '<label style="flex-direction:row;align-items:center;gap:8px">Portions<input type="number" min="1" max="12" value="' + ui.rServings + '" data-change="r-servings" style="width:72px"></label></div>' +
       '<div class="table-wrap"><table><thead><tr><th>Ingrédient</th><th class="num">Quantité</th><th class="num">kcal</th><th class="num">P</th><th class="num">G</th><th class="num">L</th><th class="num">Fibres</th><th></th></tr></thead><tbody>' + rows +
       '<tr><td><strong>Total</strong></td><td></td><td class="num"><strong>' + U.num(c.total.kcal) + '</strong></td><td class="num">' + U.num(c.total.p) + '</td><td class="num">' + U.num(c.total.g) + '</td><td class="num">' + U.num(c.total.l) + '</td><td class="num">' + U.num(c.total.fib, 1) + '</td><td></td></tr>' +
       '<tr><td><strong>Par portion</strong></td><td></td><td class="num"><strong>' + U.num(c.per.kcal) + '</strong></td><td class="num">' + U.num(c.per.p) + '</td><td class="num">' + U.num(c.per.g) + '</td><td class="num">' + U.num(c.per.l) + '</td><td class="num">' + U.num(c.per.fib, 1) + '</td><td></td></tr></tbody></table></div>' +
       (c.missing.length ? '<div class="alert warn">Ingrédients introuvables, non comptés : ' + esc(c.missing.join(', ')) + '</div>' : '') +
       '<p class="small muted">Macros calculées en additionnant chaque ingrédient puis en divisant par ' + ui.rServings + ' portion' + (ui.rServings > 1 ? 's' : '') + '.' + (c.variable ? ' Certaines valeurs dépendent de la marque : vérifier l\'étiquette.' : '') + (c.sources.includes('demo') ? ' Valeurs de démonstration, indicatives.' : '') + ' Une substitution conserve l\'apport principal de l\'ingrédient (protéines ou glucides).</p>' +
+      (r.bookMacros ? '<p class="small muted">Valeurs annoncées par la source pour 1 portion : ' + U.num(r.bookMacros[0]) + ' kcal, P ' + U.num(r.bookMacros[1]) + ' g' + (r.bookMacros.length > 2 ? ', G ' + U.num(r.bookMacros[2]) + ' g, L ' + U.num(r.bookMacros[3], 1) + ' g' : '') + '. L\'app recalcule à partir des ingrédients (Ciqual), d\'où d\'éventuels écarts.</p>' : '') +
+      (r.note ? '<p class="small muted">' + esc(r.note) + '</p>' : '') +
       '<div><p class="kicker">Préparation</p><ol style="margin:6px 0 0;padding-left:20px">' + (r.steps || []).map((s) => '<li>' + esc(s) + '</li>').join('') + '</ol></div>' +
-      '<p class="small muted">Source : ' + esc(R.sourceLabel(r)) + '</p>' +
+      '<p class="small muted">Source : ' + esc(R.sourceLabel(r)) + (r.source && r.source.collection ? ' — étapes résumées ; explications détaillées et photos dans le livre.' : '') + '</p>' +
       '<div class="inline"><label style="flex-direction:row;align-items:center;gap:8px">Repas<select data-change="r-meal" style="width:auto">' + opts(N.MEALS.map((m) => [m.id, m.label]), ui.rMeal || r.meals[0]) + '</select></label>' +
         '<button class="btn primary" data-action="r-log">Ajouter 1 portion au journal</button>' +
         '<button class="btn" data-action="r-log-fit">Ajouter une portion ajustée à ma cible</button>' +
@@ -706,7 +722,7 @@
     const c = R.compute(S, { servings: e.servings || 1 }, e.ingredients);
     const rows = e.ingredients.map((i, idx) => {
       const f = F.byId(S, i.foodId);
-      return '<tr><td>' + esc(f ? F.displayName(f) : i.foodId) + '</td><td><input type="text" inputmode="decimal" value="' + U.num(i.qty, i.qty % 1 ? 1 : 0) + '" data-change="ed-qty" data-idx="' + idx + '" style="width:80px" aria-label="Quantité"></td>' +
+      return '<tr><td>' + esc(f ? F.displayName(f) : i.foodId) + '</td><td><input type="text" inputmode="decimal" value="' + (F.isPiece(i.unit) || i.unit === 'portion' ? U.frac(i.qty) : U.num(i.qty, i.qty % 1 ? 1 : 0)) + '" data-change="ed-qty" data-idx="' + idx + '" style="width:80px" aria-label="Quantité"></td>' +
         '<td><select data-change="ed-unit" data-idx="' + idx + '" aria-label="Unité">' + opts(F.unitsFor(f || { basis: '100g' }).map((u) => [u.id, u.label]), i.unit) + '</select></td>' +
         '<td><select data-change="ed-role" data-idx="' + idx + '" aria-label="Rôle">' + opts([['prot', 'Protéines'], ['carb', 'Féculent / fruit'], ['fat', 'Matière grasse'], ['veg', 'Légumes'], ['other', 'Autre']], i.role) + '</select></td>' +
         '<td><button class="btn sm ghost danger" data-action="ed-remove" data-idx="' + idx + '">Retirer</button></td></tr>';
@@ -735,14 +751,17 @@
   }
 
   function vRecettes() {
-    const list = R.all(S).filter((r) => (!ui.rFilterMeal || r.meals.includes(ui.rFilterMeal)) && (!ui.rQuery || U.norm(r.name).includes(U.norm(ui.rQuery))));
+    const list = filteredRecipes();
     const open = ui.recipe && R.byId(S, ui.recipe);
+    const cols = R.collections(S);
     return '<div class="container">' +
-      '<div class="page-head"><div><h1>Recettes</h1><p class="sub">Macros calculées à partir des ingrédients, jamais saisies à la main.</p></div><button class="btn primary" data-action="r-new">Nouvelle recette</button></div>' +
+      '<div class="page-head"><div><h1>Recettes</h1><p class="sub">' + R.all(S).length + ' recettes · macros calculées à partir des ingrédients, jamais saisies à la main.</p></div><div class="inline"><label class="btn" style="flex-direction:row">Importer des recettes<input type="file" accept="application/json,.json" data-change="r-import" class="sr-only"></label><button class="btn primary" data-action="r-new">Nouvelle recette</button></div></div>' +
       (ui.editor ? editorHTML() : '') + (open && !ui.editor ? recipeDetail(open) : '') +
       (!ui.editor && !open ? suggestionsHTML(today()) : '') +
       '<section class="card"><div class="inline"><label style="flex:1 1 220px">Rechercher<input type="search" value="' + esc(ui.rQuery || '') + '" data-input="rq" placeholder="poulet, pâtes…"></label>' +
-        '<label style="flex:0 1 200px">Repas<select data-change="r-filter">' + opts([['', 'Tous']].concat(N.MEALS.map((m) => [m.id, m.label])), ui.rFilterMeal || '') + '</select></label></div>' +
+        '<label style="flex:0 1 200px">Repas<select data-change="r-filter">' + opts([['', 'Tous']].concat(N.MEALS.map((m) => [m.id, m.label])), ui.rFilterMeal || '') + '</select></label>' +
+        '<label style="flex:0 1 220px">Collection<select data-change="r-collection">' + opts([['', 'Toutes'], ['app', 'Recettes de l\'app'], ['user', 'Mes recettes']].concat(Object.keys(cols).map((c) => [c, c + ' (' + cols[c] + ')'])), ui.rCollection || '') + '</select></label></div>' +
+        (ui.rCollection && cols[ui.rCollection] ? '<div><button class="btn sm ghost danger" data-action="r-col-remove" data-c="' + esc(ui.rCollection) + '">Retirer la collection « ' + esc(ui.rCollection) + ' »</button></div>' : '') +
         '<div class="cards" id="recipe-list">' + (list.map(recipeCard).join('') || '<p class="muted">Aucune recette ne correspond.</p>') + '</div></section>' +
       legal + '</div>';
   }
@@ -831,27 +850,23 @@
 
   function ciqualHTML() {
     const meta = S.meta.ciqual;
-    let html = '<section class="card"><h2>Import Ciqual</h2>' +
-      '<p class="small">1. Télécharge la table sur <a href="https://ciqual.anses.fr/" target="_blank" rel="noopener">ciqual.anses.fr</a>. 2. Ouvre-la dans un tableur et enregistre-la en CSV (séparateur point-virgule). 3. Importe le fichier ici.</p>' +
-      '<div class="inline" style="align-items:flex-end"><label style="flex:0 1 220px">Nom de la version<input type="text" id="ciq-label" value="' + esc(ui.ciqLabel || 'CIQUAL') + '" data-change="ciq-label" placeholder="ex. CIQUAL 2025"></label>' +
-      '<label class="btn" style="flex-direction:row">Importer le CSV Ciqual<input type="file" accept=".csv,text/csv" data-change="ciqual-file" class="sr-only"></label>' +
-      (meta ? '<button class="btn ghost danger" data-action="ciq-remove">Retirer l\'import</button>' : '') + '</div>';
-    if (meta) {
-      const sugg = FD.ciqual.suggestLinks(S);
-      const linkedCount = Object.keys(S.foodLinks || {}).length;
-      const pending = sugg.filter((x) => x.suggestion && !x.linked).length;
-      html += '<p>' + U.num(meta.count) + ' aliments importés (' + esc(meta.version || 'CIQUAL') + ', le ' + esc(U.frShort(meta.importedAt.slice(0, 10))) + '). ' + linkedCount + ' aliment(s) de la base de démo utilisent désormais les valeurs Ciqual.</p>' +
-        '<p class="small muted">Lier un aliment de démo à Ciqual remplace ses valeurs nutritionnelles dans les recettes, repas types et plans. Les entrées déjà enregistrées dans le journal gardent leurs valeurs.</p>' +
-        (pending ? '<div><button class="btn primary" data-action="ciq-link-all">Lier les ' + pending + ' correspondances proposées</button></div>' : '') +
-        '<div class="table-wrap"><table><thead><tr><th>Aliment de démo</th><th>Valeurs utilisées</th><th></th></tr></thead><tbody>' +
-        sugg.map((x) => {
-          const linkedF = x.linked && (S.customFoods || []).find((c) => c.id === x.linked);
-          return '<tr><td>' + esc(F.displayName(x.demo)) + '</td><td class="small">' + (linkedF ? 'Ciqual : ' + esc(linkedF.base) : x.suggestion ? '<span class="muted">Démo · proposé : ' + esc(x.suggestion.base) + '</span>' : '<span class="muted">Démo · pas de correspondance sûre</span>') + '</td>' +
-            '<td class="num">' + (linkedF ? '<button class="btn sm ghost" data-action="ciq-unlink" data-id="' + esc(x.demo.id) + '">Délier</button>' : x.suggestion ? '<button class="btn sm" data-action="ciq-link" data-id="' + esc(x.demo.id) + '" data-cid="' + esc(x.suggestion.id) + '">Lier</button>' : '') +
-            '<button class="btn sm ghost" data-action="ciq-manual" data-id="' + esc(x.demo.id) + '">Choisir…</button></td></tr>' +
-            (ui.ciqManual === x.demo.id ? '<tr><td colspan="3"><label>Rechercher dans Ciqual<input type="search" id="ciq-q" value="' + esc(ui.ciqQuery || '') + '" data-input="ciqq" autocomplete="off"></label><div id="ciq-results">' + ciqResultsHTML() + '</div></td></tr>' : '');
-        }).join('') + '</tbody></table></div>';
-    }
+    const C = window.FD_CIQUAL;
+    const sugg = FD.ciqual.suggestLinks(S);
+    const linkedCount = sugg.filter((x) => x.effective).length;
+    let html = '<section class="card"><h2>Table Ciqual</h2>' +
+      (meta ? '<p>Table importée : ' + U.num(meta.count) + ' aliments (' + esc(meta.version || 'CIQUAL') + ', le ' + esc(U.frShort(meta.importedAt.slice(0, 10))) + '). Elle remplace la table intégrée.</p>'
+        : (C ? '<p><strong>' + esc(C.version) + '</strong> est intégrée à l\'app : ' + U.num(C.rows.length) + ' aliments disponibles hors ligne, dont des centaines de plats composés, sandwichs, soupes, pizzas et desserts.</p>' : '')) +
+      '<p class="small muted">' + linkedCount + ' aliments de base utilisent les valeurs Ciqual ; les autres gardent des valeurs indicatives. Une table plus récente peut être importée en CSV depuis <a href="https://ciqual.anses.fr/" target="_blank" rel="noopener">ciqual.anses.fr</a> (Excel → enregistrer en CSV, séparateur point-virgule).</p>' +
+      '<div class="inline" style="align-items:flex-end"><label style="flex:0 1 220px">Nom de la version<input type="text" id="ciq-label" value="' + esc(ui.ciqLabel || 'CIQUAL') + '" data-change="ciq-label" placeholder="ex. CIQUAL 2026"></label>' +
+      '<label class="btn" style="flex-direction:row">Importer un CSV Ciqual<input type="file" accept=".csv,text/csv" data-change="ciqual-file" class="sr-only"></label>' +
+      (meta ? '<button class="btn ghost danger" data-action="ciq-remove">Revenir à la table intégrée</button>' : '') + '</div>' +
+      '<details' + (ui.ciqOpen ? ' open' : '') + '><summary>Correspondances des aliments de base</summary>' +
+      '<div class="table-wrap"><table><thead><tr><th>Aliment de base</th><th>Valeurs utilisées</th><th></th></tr></thead><tbody>' +
+      sugg.map((x) => '<tr><td>' + esc(F.displayName(x.demo)) + '</td><td class="small">' + (x.effective ? 'Ciqual : ' + esc(x.effective.ciqualName) : '<span class="muted">Valeur indicative de l\'app</span>' + (x.suggestion ? '<br><span class="muted">proposé : ' + esc(x.suggestion.base) + '</span>' : '')) + '</td>' +
+        '<td class="num">' + (x.effective ? '<button class="btn sm ghost" data-action="ciq-unlink" data-id="' + esc(x.demo.id) + '">Délier</button>' : x.suggestion ? '<button class="btn sm" data-action="ciq-link" data-id="' + esc(x.demo.id) + '" data-cid="' + esc(x.suggestion.id) + '">Lier</button>' : '') +
+        '<button class="btn sm ghost" data-action="ciq-manual" data-id="' + esc(x.demo.id) + '">Choisir…</button></td></tr>' +
+        (ui.ciqManual === x.demo.id ? '<tr><td colspan="3"><label>Rechercher dans Ciqual<input type="search" id="ciq-q" value="' + esc(ui.ciqQuery || '') + '" data-input="ciqq" autocomplete="off"></label><div id="ciq-results">' + ciqResultsHTML() + '</div></td></tr>' : '')).join('') +
+      '</tbody></table></div></details>';
     return html + '</section>';
   }
 
@@ -889,6 +904,7 @@
       if (a.getAttribute('href') === '#/' + ui.route) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     if (ui.route === 'suivi') { drawSuivi(); fillPhotos(); }
+    if (ui.route === 'recettes') fillRecipePhotos();
   }
 
   /* ------------------------------------------------------------------ */
@@ -907,6 +923,7 @@
   }
 
   function pickFood(group) {
+    group = Object.assign({}, group, { variants: group.variants.map((v) => F.inheritUnits(S, v)) });
     ui.pick = group;
     ui.variantId = group.variants.length === 1 ? group.variants[0].id : null;
     const f = group.variants[0];
@@ -923,6 +940,7 @@
       case 'jtoday': ui.jDate = today(); render(); break;
       case 'tab': ui.tab = el.dataset.tab; ui.pick = null; render(); break;
       case 'pick': pickFood(ui.results[+el.dataset.idx]); render(); focusSoon('#pick-qty'); break;
+      case 'qty-chip': ui.qty = U.frac(+el.dataset.v); render(); break;
       case 'variant': {
         ui.variantId = el.dataset.id;
         const fv = ui.pick && ui.pick.variants.find((x) => x.id === ui.variantId);
@@ -982,6 +1000,14 @@
       }
       case 'r-open': ui.recipe = el.dataset.id; ui.rIngsFor = null; ui.editor = null; if (el.dataset.go) location.hash = '#/' + el.dataset.go; else { render(); window.scrollTo({ top: 0 }); } break;
       case 'r-close': ui.recipe = null; ui.rIngsFor = null; render(); break;
+      case 'r-photo-del': FD.photos.removeRecipePhoto(el.dataset.id).then(() => { toast('Photo retirée.'); fillRecipePhotos(); }); break;
+      case 'r-col-remove': {
+        const c = el.dataset.c;
+        if (!confirm('Retirer toutes les recettes de la collection « ' + c + ' » ?')) break;
+        S.recipes = S.recipes.filter((r) => !(r.source && r.source.collection === c)); ui.rCollection = ''; ui.recipe = null;
+        commit('Collection retirée.');
+        break;
+      }
       case 'r-reset': ui.rIngsFor = null; render(); break;
       case 'r-log':
       case 'r-log-fit': {
@@ -994,7 +1020,7 @@
           const tg = C.dayTarget(S, today());
           const mt = N.mealTargets(tg, S.profile.trainingTime, tg.type.cat !== 'repos')[meal];
           ings = R.fit(S, r, mt, base).ingredients;
-        } else ings = base.map((i) => Object.assign({}, i, { qty: R.roundQty(i.qty, i.unit) }));
+        } else ings = base.map((i) => Object.assign({}, i, { qty: R.roundQty(i.qty, i.unit, F.byId(S, i.foodId)) }));
         logIngredients(today(), meal, ings);
         commit('1 portion de « ' + r.name + ' » ajoutée au journal.');
         break;
@@ -1084,18 +1110,18 @@
         break;
 
       // --- Ciqual ---
-      case 'ciq-link': S.foodLinks[el.dataset.id] = el.dataset.cid; ui.ciqManual = null; ui.ciqQuery = ''; commit('Aliment lié à Ciqual.'); break;
-      case 'ciq-unlink': delete S.foodLinks[el.dataset.id]; commit('Aliment délié : valeurs de démo rétablies.'); break;
-      case 'ciq-manual': ui.ciqManual = ui.ciqManual === el.dataset.id ? null : el.dataset.id; ui.ciqQuery = ''; render(); focusSoon('#ciq-q'); break;
+      case 'ciq-link': ui.ciqOpen = true; S.foodLinks[el.dataset.id] = el.dataset.cid; ui.ciqManual = null; ui.ciqQuery = ''; commit('Aliment lié à Ciqual.'); break;
+      case 'ciq-unlink': ui.ciqOpen = true; S.foodLinks[el.dataset.id] = null; commit('Aliment délié : valeurs indicatives de l\'app rétablies.'); break;
+      case 'ciq-manual': ui.ciqOpen = true; ui.ciqManual = ui.ciqManual === el.dataset.id ? null : el.dataset.id; ui.ciqQuery = ''; render(); focusSoon('#ciq-q'); break;
       case 'ciq-link-all': {
         let n = 0;
-        FD.ciqual.suggestLinks(S).forEach((x) => { if (x.suggestion && !x.linked) { S.foodLinks[x.demo.id] = x.suggestion.id; n++; } });
+        FD.ciqual.suggestLinks(S).forEach((x) => { if (x.suggestion && !x.effective) { S.foodLinks[x.demo.id] = x.suggestion.id; n++; } });
         commit(n + ' aliment(s) liés à Ciqual.');
         break;
       }
       case 'ciq-remove':
-        if (!confirm('Retirer l\'import Ciqual et les liaisons ?')) break;
-        S.customFoods = S.customFoods.filter((f) => f.source !== 'ciqual'); S.foodLinks = {}; delete S.meta.ciqual; commit('Import Ciqual retiré.'); break;
+        if (!confirm('Retirer la table importée et revenir à la table Ciqual intégrée ?')) break;
+        S.customFoods = S.customFoods.filter((f) => f.source !== 'ciqual'); S.foodLinks = {}; delete S.meta.ciqual; commit('Table Ciqual intégrée rétablie.'); break;
       default: break;
     }
   });
@@ -1158,6 +1184,23 @@
       case 'r-servings': { const n = parseInt(el.value, 10); if (n > 0) { ui.rServings = n; render(); } break; }
       case 'r-meal': ui.rMeal = el.value; break;
       case 'r-filter': ui.rFilterMeal = el.value; render(); break;
+      case 'r-collection': ui.rCollection = el.value; render(); break;
+      case 'r-photo': {
+        const file = el.files && el.files[0];
+        if (!file) break;
+        FD.photos.setRecipePhoto(el.dataset.id, file).then(() => { toast('Photo enregistrée sur cet appareil.'); fillRecipePhotos(); }).catch((e) => toast(e.message));
+        break;
+      }
+      case 'r-import': {
+        const file = el.files && el.files[0];
+        if (!file) break;
+        file.text().then((t) => {
+          const res = R.importCollection(S, JSON.parse(t));
+          if (res.collection) ui.rCollection = res.collection;
+          commit(res.recipes + ' recettes importées' + (res.missing.length ? ' (' + res.missing.length + ' ingrédient(s) introuvable(s))' : '') + '.');
+        }).catch((e) => toast(e.message || 'Import impossible.'));
+        break;
+      }
       case 'r-sub': {
         if (!el.value) break;
         const idx = +el.dataset.idx;
@@ -1236,9 +1279,9 @@
     }
     if (el.dataset.input === 'rq') {
       ui.rQuery = el.value;
-      const list = R.all(S).filter((r) => (!ui.rFilterMeal || r.meals.includes(ui.rFilterMeal)) && (!ui.rQuery || U.norm(r.name).includes(U.norm(ui.rQuery))));
+      const list = filteredRecipes();
       const box = document.getElementById('recipe-list');
-      if (box) box.innerHTML = list.map(recipeCard).join('') || '<p class="muted">Aucune recette ne correspond.</p>';
+      if (box) { box.innerHTML = list.map(recipeCard).join('') || '<p class="muted">Aucune recette ne correspond.</p>'; fillRecipePhotos(); }
     }
     if (el.dataset.input === 'edq') {
       ui.edQuery = el.value;
@@ -1317,7 +1360,7 @@
           name: (v.name || '').trim(), sex: v.sex, age: n('age'), height: n('height'), weight: n('weight', true), targetWeight: n('targetWeight', true),
           waist: n('waist', true), targetWaist: n('targetWaist', true), job: v.job, steps: n('steps'), stepsGoal: n('stepsGoal'),
           strengthPerWeek: n('strengthPerWeek'), runPerWeek: n('runPerWeek'), sessionMinutes: n('sessionMinutes'), trainingTime: v.trainingTime || p.trainingTime,
-          goal: v.goal, pace: v.pace, kcalMin: n('kcalMin'), kcalMax: n('kcalMax'), proteinG: n('proteinG'), fiberG: n('fiberG'), mealsPerDay: n('mealsPerDay'),
+          goal: v.goal, pace: v.pace, kcalMin: n('kcalMin'), kcalMax: n('kcalMax'), proteinG: n('proteinG'), fatG: num(v.fatG) > 0 ? Math.round(num(v.fatG)) : null, fiberG: n('fiberG'), mealsPerDay: n('mealsPerDay'),
           diet: v.diet, allergies: v.allergies || '', intolerances: v.intolerances || '', excluded: v.excluded || '', preferred: v.preferred || '',
           budget: v.budget || '', cookTime: v.cookTime || '', equipment: [].concat(v.equipment || []),
           pregnancy: !!v.pregnancy, medicalCondition: !!v.medicalCondition, medication: !!v.medication
@@ -1379,6 +1422,40 @@
       default: break;
     }
   });
+
+  function filteredRecipes() {
+    return R.all(S).filter((r) => {
+      if (ui.rFilterMeal && !r.meals.includes(ui.rFilterMeal)) return false;
+      if (ui.rQuery && !U.norm(r.name).includes(U.norm(ui.rQuery))) return false;
+      const src = r.source || {};
+      if (ui.rCollection === 'app' && src.type && src.type !== 'app') return false;
+      if (ui.rCollection === 'user' && (src.type !== 'user')) return false;
+      if (ui.rCollection && !['app', 'user'].includes(ui.rCollection) && src.collection !== ui.rCollection) return false;
+      return true;
+    });
+  }
+
+  /** Affiche les photos de recettes (IndexedDB) dans les vignettes et la fiche ouverte. */
+  function fillRecipePhotos() {
+    if (!FD.photos || !document.querySelector('[data-photo], #recipe-photo')) return;
+    FD.photos.recipePhotos().then((all) => {
+      ui.recipePhotoUrls.forEach((u) => URL.revokeObjectURL(u));
+      ui.recipePhotoUrls = [];
+      const map = {};
+      all.forEach((p) => { map[p.id] = p.blob; });
+      const url = (b) => { const u = URL.createObjectURL(b); ui.recipePhotoUrls.push(u); return u; };
+      document.querySelectorAll('[data-photo]').forEach((el) => {
+        const b = map[el.dataset.photo];
+        if (b) { el.style.backgroundImage = 'url(' + url(b) + ')'; el.classList.add('has-photo'); el.textContent = ''; }
+      });
+      const big = document.getElementById('recipe-photo');
+      if (big) {
+        const b = map[big.dataset.id];
+        big.innerHTML = b ? '<img src="' + url(b) + '" alt="Photo de la recette">' : '';
+        big.hidden = !b;
+      }
+    }).catch(() => {});
+  }
 
   /** Recherche un code-barres : produits déjà connus d'abord, puis Open Food Facts. */
   function lookupBarcode(code) {

@@ -1,4 +1,4 @@
-# FitDiet Coach — version 3
+# FitDiet Coach — version 3.5
 
 Application de suivi nutritionnel sportif en HTML/CSS/JavaScript vanilla.
 Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun serveur.
@@ -18,8 +18,12 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Scanner code-barres** (V3) : caméra en direct (BarcodeDetector natif ou ZXing embarqué), photo du code, ou saisie des chiffres ; recherche Open Food Facts, confirmation avant ajout ; produits déjà scannés retrouvés hors ligne.
 - **Photos de progression** (V3) : face / profil / dos, datées, stockées uniquement dans le navigateur (IndexedDB), comparaison dernière / 1 semaine / 1 mois / 3 mois, export/import séparé.
 - **Fruits et légumes à la pièce** (V3.1) : 1 banane, 1 tomate, 1 poignée de salade… avec calibre petit / moyen / gros et l'équivalent en grammes affiché ; 30 fruits et légumes ajoutés.
+- **Ciqual 2025 intégrée hors ligne** (V3.3) : 3 385 aliments de la table ANSES, dont environ 400 plats composés (lasagnes, couscous, hachis parmentier, quiches, pizzas, soupes, salades composées), 66 sandwichs, viennoiseries, desserts et boissons, avec portions types (assiette, part, bol, sandwich, verre). Les aliments de base sont liés à Ciqual (sauf skyr, whey, crème de riz). Licence Ouverte Etalab 2.0 ; données converties depuis github.com/OlivierFitter/ciqual_2025_complete.
+- **Import de recettes et photos** (V3.5) : import d'un fichier de recettes JSON (type `fitdiet-coach-recipes`), filtre par collection, retrait d'une collection, photo personnelle par recette stockée localement (IndexedDB), notes par ingrédient, valeurs annoncées par la source affichées à titre de comparaison. Les fichiers de recettes issus de livres achetés restent privés : ne pas les déposer dans le dépôt GitHub.
+- **Lipides quotidiens** (V3.4) : objectif de lipides en g/jour dans le profil (65 g par défaut), appliqué à toutes les séances ; les glucides prennent le reste. Champ vide = lipides réglés séance par séance.
+- **Fractions** (V3.3) : « 1/2 », « ½ », « 1 1/2 » acceptés, boutons ¼ ½ ¾ 1 1½ 2, affichage « ½ × avocat ».
 - **Prix** (V3) : prix indicatifs modifiables, coût estimé par jour, par plan et pour la liste de courses, budget hebdomadaire du profil pris en compte par le générateur (sans sacrifier les protéines).
-- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 18 scénarios.
+- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 23 scénarios.
 
 ## Architecture
 
@@ -46,6 +50,8 @@ js/scanner.js     lecture de codes-barres
 js/photos.js      photos de progression (IndexedDB)
 js/vendor/zxing.min.js  ZXing 0.21.3 (licence MIT, voir ZXING-LICENSE)
 data/prices.js    prix indicatifs
+data/ciqual.js    table CIQUAL 2025 compacte (hors ligne)
+data/ciqual-links.js  correspondances aliments de base → codes Ciqual
 data/recipes.js   recettes et groupes de substitution
 js/charts.js      graphiques canvas
 js/api.js         Open Food Facts, point d'extension IA
@@ -57,7 +63,7 @@ Les données sont chargées en scripts classiques (pas de `fetch` ni de modules 
 
 ## Limites connues
 
-- Les valeurs de `data/foods.js` sont des **ordres de grandeur de démonstration**, marqués « Démo », tant qu'ils ne sont pas liés à un import Ciqual.
+- Les aliments de base sans équivalent Ciqual (skyr, whey, crème de riz) gardent des valeurs indicatives marquées « Démo ». Les portions types des plats Ciqual sont indicatives.
 - Open Food Facts nécessite une connexion internet.
 - Pas de photos de recettes (vignette par initiale).
 - La caméra exige https (ou un fichier ouvert sur ordinateur). Sur téléphone, héberge le dossier (GitHub Pages, Netlify…) pour scanner en direct ; sinon, utilise « Photographier le code-barres ».

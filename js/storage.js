@@ -47,6 +47,7 @@ FD.storage = (function () {
         kcalMax: 2000,
         kcalOffset: 0,              // ajustement global appliqué par le coach (kcal/jour)
         proteinG: 140,
+        fatG: 65,                   // lipides quotidiens fixes ; vide = valeur propre à chaque type de séance
         fatPerKgMin: 0.7,
         fatPerKgMax: 1.0,
         fiberG: 30,

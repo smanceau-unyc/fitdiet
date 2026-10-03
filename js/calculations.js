@@ -67,6 +67,12 @@ FD.calc = (function () {
     return sessionType(state, id);
   }
 
+  /** Lipides du jour : objectif quotidien du profil s'il est renseigné, sinon valeur du type de séance. */
+  function fatFor(state, type) {
+    const f = state.profile.fatG;
+    return typeof f === 'number' && f > 0 ? f : type.fat;
+  }
+
   /** Macros pour une cible kcal + lipides donnés. Glucides = calories restantes. */
   function macrosFor(state, kcal, fatG) {
     const p = state.profile.proteinG;
@@ -82,7 +88,7 @@ FD.calc = (function () {
   function dayTarget(state, iso) {
     const type = sessionFor(state, iso);
     const kcal = type.kcal + (state.profile.kcalOffset || 0);
-    const m = macrosFor(state, kcal, type.fat);
+    const m = macrosFor(state, kcal, fatFor(state, type));
     return Object.assign(m, { type, water: hydration(state.profile, type.cat !== 'repos') });
   }
 
@@ -107,13 +113,14 @@ FD.calc = (function () {
     const t = tdee(p);
     const deficit = 1 - minTarget / t.mid;
     if (p.goal === 'perte' && deficit > 0.25) alerts.push({ level: 'warn', text: 'Le déficit estimé dépasse 25 % les jours les plus bas. La dépense est une estimation : la tendance des prochaines semaines dira si c\'est trop.' });
+    if (p.fatG > 0 && p.fatG / p.weight < 0.6) alerts.push({ level: 'warn', text: 'Lipides à ' + U.num(p.fatG / p.weight, 2) + ' g/kg : sous la plage conseillée de 0,7–1,0 g/kg (au moins ' + Math.round(p.weight * 0.7) + ' g/jour pour toi).' });
     const ppk = p.proteinG / p.weight;
     if (ppk < 1.6) alerts.push({ level: 'warn', text: 'Protéines à ' + U.num(ppk, 1) + ' g/kg : en dessous de la plage conseillée (1,6–2,2 g/kg) pour préserver le muscle en déficit.' });
     if (ppk > 2.4) alerts.push({ level: 'info', text: 'Protéines à ' + U.num(ppk, 1) + ' g/kg : au-delà de 2,2 g/kg, le bénéfice supplémentaire est peu documenté.' });
     state.sessionTypes.forEach((ty) => {
-      const fpk = ty.fat / p.weight;
-      if (fpk < 0.6) alerts.push({ level: 'warn', text: 'Lipides de « ' + ty.label + ' » à ' + U.num(fpk, 2) + ' g/kg : sous la plage 0,7–1,0 g/kg.' });
-      const m = macrosFor(state, ty.kcal + (p.kcalOffset || 0), ty.fat);
+      const fpk = fatFor(state, ty) / p.weight;
+      if (fpk < 0.6 && !(p.fatG > 0)) alerts.push({ level: 'warn', text: 'Lipides de « ' + ty.label + ' » à ' + U.num(fpk, 2) + ' g/kg : sous la plage 0,7–1,0 g/kg.' });
+      const m = macrosFor(state, ty.kcal + (p.kcalOffset || 0), fatFor(state, ty));
       if (m.g < 100) alerts.push({ level: 'warn', text: 'Glucides de « ' + ty.label + ' » sous 100 g : peu adapté à un entraînement régulier.' });
     });
     if (p.pregnancy || p.medicalCondition || p.medication) alerts.push({ level: 'danger', text: 'Situation médicale déclarée : le coach ne modifiera pas automatiquement tes objectifs. Fais valider tes cibles par un professionnel de santé.' });
@@ -128,5 +135,5 @@ FD.calc = (function () {
     return { min: Math.ceil(toLose / fast), max: Math.ceil(toLose / slow) };
   }
 
-  return { bmr, tdee, goalKcal, floorKcal, sessionType, sessionFor, macrosFor, dayTarget, hydration, activityRange, stepsRange, profileAlerts, timeToGoal, MET };
+  return { bmr, tdee, goalKcal, floorKcal, sessionType, sessionFor, fatFor, macrosFor, dayTarget, hydration, activityRange, stepsRange, profileAlerts, timeToGoal, MET };
 })();

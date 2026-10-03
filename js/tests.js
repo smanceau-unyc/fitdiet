@@ -149,7 +149,7 @@ FD.tests = (function () {
         const plan = { start: TODAY, settings: {}, days: [{ iso: TODAY, meals: [{ ingredients: [{ foodId: 'riz-cuit', qty: 290, unit: 'g' }] }] }] };
         const list = FD.shopping.build(s, plan);
         const item = list.groups[0].items[0];
-        return { ok: item.id === 'riz-cru' && /^1[01]0 g$/.test(item.qty), title: item.name + ' ' + item.qty };
+        return { ok: item.id === 'riz-cru' && /^1[1-4]0 g$/.test(item.qty), title: item.name + ' ' + item.qty };
       }
     }
     ,
@@ -162,6 +162,46 @@ FD.tests = (function () {
         const ok = du.unit === 'unite' && du.qty === '1' && FD.foods.toBaseQty(ban, 1, 'unite_g') === 156 &&
           FD.foods.toBaseQty(sal, 1, 'portion') === 30 && FD.foods.defaultUnit(tom).unit === 'unite' && FD.foods.defaultUnit(sal).unit === 'portion';
         return { ok, title: '1 grosse banane ≈ ' + FD.foods.toBaseQty(ban, 1, 'unite_g') + ' g' };
+      }
+    },
+    {
+      name: 'Produit Open Food Facts « Avocat bio » → 1 avocat ; « Huile d\'avocat » et « Pommes de terre » → grammes',
+      run: () => {
+        const s = FD.storage.defaultState();
+        const mk = (n, k) => ({ id: 'x', base: n, source: 'off', kcal: k, p: 1, g: 1, l: 1, basis: '100g' });
+        const a = FD.foods.inheritUnits(s, mk('Avocat bio', 205)), h = FD.foods.inheritUnits(s, mk('Huile vierge d\'avocat', 900)), t = FD.foods.inheritUnits(s, mk('Pommes de terre grenaille', 80));
+        return { ok: a.unitG === 140 && !h.unitG && !t.unitG, title: 'avocat ' + a.unitG + ' g/pièce' };
+      }
+    },
+    {
+      name: 'Demi-avocat : « 1/2 » et « ½ » lus comme 0,5 pièce (≈ 70 g), affichés « ½ »',
+      run: () => {
+        const s = FD.storage.defaultState();
+        const a = FD.foods.byId(s, 'avocat');
+        const q1 = U.parseNum('1/2'), q2 = U.parseNum('½'), q3 = U.parseNum('1 1/2');
+        const g = FD.foods.toBaseQty(a, q1, 'unite');
+        const label = FD.foods.qtyLabel(a, q1, 'unite');
+        return { ok: q1 === 0.5 && q2 === 0.5 && q3 === 1.5 && g === 70 && label.startsWith('½ ×'), title: label + ' = ' + g + ' g' };
+      }
+    },
+    {
+      name: 'Ciqual intégrée hors ligne — plats composés trouvables, aliments de base liés',
+      run: () => {
+        const s = FD.storage.defaultState();
+        const las = FD.foods.search(s, 'lasagnes', 5), riz = FD.foods.byId(s, 'riz-cru');
+        const ok = (window.FD_CIQUAL ? window.FD_CIQUAL.rows.length > 3000 : false) && las.length > 0 && las[0].variants[0].portionLabel === 'assiette' && riz.source === 'ciqual';
+        return { ok, title: FD.foods.all(s).length + ' aliments' };
+      }
+    },
+    {
+      name: 'Lipides quotidiens du profil (65 g) appliqués à toutes les séances ; vide = valeur de la séance',
+      run: () => {
+        const s = FD.storage.defaultState();
+        s.profile.fatG = 65;
+        const run = FD.calc.macrosFor(s, 2000, FD.calc.fatFor(s, FD.calc.sessionType(s, 'run_hard')));
+        s.profile.fatG = null;
+        const run2 = FD.calc.fatFor(s, FD.calc.sessionType(s, 'run_hard'));
+        return { ok: run.l === 65 && Math.round(run.g) === 214 && run2 === 60, title: 'course intense : L 65 g, G ≈ ' + Math.round(run.g) + ' g' };
       }
     },
     {
