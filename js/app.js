@@ -699,7 +699,7 @@
     }).join('');
     return '<section class="card" aria-label="Recette"><div class="card-head"><h2>' + esc(r.name) + '</h2><button class="btn sm ghost" data-action="r-close">Fermer</button></div>' +
       '<div class="recipe-photo" id="recipe-photo" data-id="' + esc(r.id) + '">' + FD.recipeArt.svg(S, r) + '</div>' +
-      '<p class="small muted" id="recipe-art-note">Illustration générée à partir des ingrédients de la recette. Ajoute ta propre photo pour la remplacer.</p>' +
+      '<p class="small muted" id="recipe-art-note">Illustration générée à partir des ingrédients. Ajoute ta photo pour la remplacer — en lot : nomme le fichier <code>' + esc(r.id) + '.jpg</code> et utilise « Importer des photos ».</p>' +
       '<div class="inline"><label class="btn sm" style="flex-direction:row">' + 'Ajouter / changer la photo<input type="file" accept="image/*" data-change="r-photo" data-id="' + esc(r.id) + '" class="sr-only"></label><button class="btn sm ghost" data-action="r-photo-del" data-id="' + esc(r.id) + '">Retirer la photo</button><span class="small muted">Ta photo reste sur cet appareil.</span></div>' +
       '<div class="inline small muted"><span>Préparation ' + (r.prep || 0) + ' min</span><span>Cuisson ' + (r.cook || 0) + ' min</span><span>Difficulté : ' + esc(r.difficulty || 'facile') + '</span>' + (r.keep ? '<span>Conservation : ' + esc(r.keep) + '</span>' : '') +
       '<label style="flex-direction:row;align-items:center;gap:8px">Portions<input type="number" min="1" max="12" value="' + ui.rServings + '" data-change="r-servings" style="width:72px"></label></div>' +
@@ -757,7 +757,7 @@
     const open = ui.recipe && R.byId(S, ui.recipe);
     const cols = R.collections(S);
     return '<div class="container">' +
-      '<div class="page-head"><div><h1>Recettes</h1><p class="sub">' + R.all(S).length + ' recettes · macros calculées à partir des ingrédients, jamais saisies à la main.</p></div><div class="inline"><label class="btn" style="flex-direction:row">Importer des recettes<input type="file" accept="application/json,.json" data-change="r-import" class="sr-only"></label><button class="btn primary" data-action="r-new">Nouvelle recette</button></div></div>' +
+      '<div class="page-head"><div><h1>Recettes</h1><p class="sub">' + R.all(S).length + ' recettes · macros calculées à partir des ingrédients, jamais saisies à la main.</p></div><div class="inline"><label class="btn" style="flex-direction:row">Importer des recettes<input type="file" accept="application/json,.json" data-change="r-import" class="sr-only"></label><label class="btn" style="flex-direction:row">Importer des photos<input type="file" accept="image/*" multiple data-change="r-photos-bulk" class="sr-only"></label><button class="btn primary" data-action="r-new">Nouvelle recette</button></div></div>' +
       (ui.editor ? editorHTML() : '') + (open && !ui.editor ? recipeDetail(open) : '') +
       (!ui.editor && !open ? suggestionsHTML(today()) : '') +
       '<section class="card"><div class="inline"><label style="flex:1 1 220px">Rechercher<input type="search" value="' + esc(ui.rQuery || '') + '" data-input="rq" placeholder="poulet, pâtes…"></label>' +
@@ -1193,6 +1193,25 @@
         const file = el.files && el.files[0];
         if (!file) break;
         FD.photos.setRecipePhoto(el.dataset.id, file).then(() => { toast('Photo enregistrée sur cet appareil.'); fillRecipePhotos(); }).catch((e) => toast(e.message));
+        break;
+      }
+      case 'r-photos-bulk': {
+        const files = Array.from(el.files || []);
+        if (!files.length) break;
+        const recipes = R.all(S);
+        const byId = {}, byName = {};
+        recipes.forEach((r) => { byId[U.norm(r.id)] = r; byName[U.norm(r.name).replace(/[^a-z0-9]+/g, '')] = r; });
+        let ok = 0; const miss = [];
+        (async () => {
+          for (const f of files) {
+            const stem = U.norm(f.name.replace(/\.[^.]+$/, ''));
+            const r = byId[stem] || byName[stem.replace(/[^a-z0-9]+/g, '')];
+            if (!r) { miss.push(f.name); continue; }
+            try { await FD.photos.setRecipePhoto(r.id, f); ok++; } catch (e) { miss.push(f.name); }
+          }
+          toast(ok + ' photo(s) associée(s)' + (miss.length ? ' · ' + miss.length + ' non reconnue(s) : ' + miss.slice(0, 3).join(', ') + (miss.length > 3 ? '…' : '') : '') + '.');
+          render();
+        })();
         break;
       }
       case 'r-import': {
