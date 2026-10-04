@@ -121,5 +121,96 @@ FD.sync = (function () {
     return state;
   }
 
-  return { cfg, setCfg, clearCfg, enabled, connect, push, pull, seal, open };
+  /* ================== Photos (gist séparé, un fichier chiffré par photo) ================== */
+  const PHOTO_DESC = 'FitDiet Coach — photos chiffrées (ne pas modifier)';
+  const stampOf = (iso) => String(iso || '0').replace(/\D/g, '').slice(0, 17) || '0';
+  const fileName = (key, stamp) => key.replace(':', '_').replace(/[^a-zA-Z0-9_-]/g, (c) => '~' + c.charCodeAt(0).toString(16)) + '__' + stamp + '.json';
+  function parseName(name) {
+    const m = name.match(/^([rp])_(.+)__(\d+)\.json$/);
+    if (!m) return null;
+    const id = m[2].replace(/~([0-9a-f]{2})/g, (x, h) => String.fromCharCode(parseInt(h, 16)));
+    return { key: m[1] + ':' + id, kind: m[1], id, stamp: m[3] };
+  }
+
+  /** Requête sans lire la réponse (les réponses de gist contiennent tous les fichiers : on les ignore). */
+  async function ghQuiet(path, opts, token) {
+    const res = await fetch(API + path, Object.assign({}, opts, { headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' } }));
+    if (!res.ok) throw new Error('GitHub a répondu ' + res.status + ' (photos).');
+    try { if (res.body && res.body.cancel) res.body.cancel(); } catch (e) { /* rien */ }
+    return true;
+  }
+
+  /** Gist des photos : retrouvé par sa description, sinon créé. Renvoie { id, files: { nom: raw_url } }. */
+  async function photoGist(token) {
+    const list = await gh('/gists?per_page=100', { method: 'GET' }, token);
+    let g = list.find((x) => x.description === PHOTO_DESC);
+    if (!g) {
+      const res = await fetch(API + '/gists', { method: 'POST', headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ description: PHOTO_DESC, public: false, files: { 'LISEZMOI.txt': { content: 'Photos FitDiet Coach chiffrées. Ne pas modifier.' } } }) });
+      if (!res.ok) throw new Error('Création du stockage des photos impossible (' + res.status + ').');
+      g = await res.json();
+    }
+    const files = {};
+    Object.keys(g.files || {}).forEach((n) => { files[n] = g.files[n].raw_url; });
+    return { id: g.id, files };
+  }
+
+  /**
+   * Synchronise les photos (progression + recettes) dans les deux sens.
+   * tombstones : { 'r:<id>': date } des photos supprimées (synchronisées avec les données).
+   * onProgress(texte) facultatif.
+   */
+  async function syncPhotos(tombstones, onProgress) {
+    const c = cfg();
+    if (!enabled()) throw new Error('Synchronisation non configurée.');
+    const say = (t) => { if (onProgress) onProgress(t); };
+    const pg = await photoGist(c.token);
+    const remote = {};
+    Object.keys(pg.files).forEach((n) => { const p = parseName(n); if (p && (!remote[p.key] || remote[p.key].stamp < p.stamp)) remote[p.key] = Object.assign(p, { name: n, url: pg.files[n] }); });
+    const localAll = await FD.photos.allRecords();
+    const local = {};
+    localAll.forEach((x) => { local[x.key] = Object.assign(x, { stamp: stampOf(x.rec.addedAt) }); });
+    const dead = tombstones || {};
+    let up = 0, down = 0, del = 0;
+
+    // 1) suppressions : photos supprimées sur un appareil
+    for (const key of Object.keys(local)) if (dead[key] && stampOf(dead[key]) >= local[key].stamp) { await FD.photos.deleteRaw(local[key].kind, local[key].rec.id); delete local[key]; del++; }
+    const remoteDeletes = {};
+    Object.keys(pg.files).forEach((n) => { const p = parseName(n); if (p && dead[p.key] && stampOf(dead[p.key]) >= p.stamp) remoteDeletes[n] = null; });
+
+    // 2) envois : photos locales absentes ou plus récentes que la copie en ligne (par lots)
+    const toUpload = Object.values(local).filter((x) => !remote[x.key] || remote[x.key].stamp < x.stamp);
+    let batch = Object.assign({}, remoteDeletes), size = 0;
+    const flush = async () => { if (Object.keys(batch).length) { await ghQuiet('/gists/' + pg.id, { method: 'PATCH', body: JSON.stringify({ files: batch }) }, c.token); } batch = {}; size = 0; };
+    for (const x of toUpload) {
+      say('Envoi des photos… ' + (up + 1) + '/' + toUpload.length);
+      const small = await FD.photos.shrink(x.rec.blob, 640, 0.78);
+      const dataUrl = await FD.photos.blobToDataURL(small);
+      const meta = x.kind === 'p' ? { date: x.rec.date, view: x.rec.view } : {};
+      const box = await seal({ meta: { updatedAt: x.rec.addedAt }, kind: x.kind, id: x.rec.id, addedAt: x.rec.addedAt, info: meta, image: dataUrl }, c.passphrase);
+      const content = JSON.stringify(box);
+      batch[fileName(x.key, x.stamp)] = { content };
+      if (remote[x.key]) batch[remote[x.key].name] = null; // ancienne version
+      size += content.length; up++;
+      if (size > 2500000 || Object.keys(batch).length >= 12) await flush();
+    }
+    await flush();
+
+    // 3) téléchargements : photos en ligne absentes ou plus récentes ici
+    const toDownload = Object.values(remote).filter((r) => !dead[r.key] && (!local[r.key] || local[r.key].stamp < r.stamp));
+    for (const r of toDownload) {
+      say('Réception des photos… ' + (down + 1) + '/' + toDownload.length);
+      const res = await fetch(r.url);
+      if (!res.ok) continue;
+      const obj = await open(await res.json(), c.passphrase);
+      const blob = await (await fetch(obj.image)).blob();
+      const rec = obj.kind === 'p' ? { id: obj.id, date: obj.info.date, view: obj.info.view, blob, addedAt: obj.addedAt } : { id: obj.id, blob, addedAt: obj.addedAt };
+      await FD.photos.putRaw(obj.kind, rec);
+      down++;
+    }
+    setCfg({ lastPhotoSyncAt: new Date().toISOString() });
+    say('');
+    return { up, down, del };
+  }
+
+  return { cfg, setCfg, clearCfg, enabled, connect, push, pull, seal, open, syncPhotos };
 })();

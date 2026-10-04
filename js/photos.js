@@ -38,7 +38,7 @@ FD.photos = (function () {
   }
 
   /** Redimensionne et compresse une image en JPEG. */
-  function shrink(file, max) {
+  function shrink(file, max, quality) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(file);
       const img = new Image();
@@ -48,7 +48,7 @@ FD.photos = (function () {
         c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(url);
-        c.toBlob((b) => (b ? resolve(b) : reject(new Error('Compression impossible.'))), 'image/jpeg', 0.85);
+        c.toBlob((b) => (b ? resolve(b) : reject(new Error('Compression impossible.'))), 'image/jpeg', quality || 0.85);
       };
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image illisible.')); };
       img.src = url;
@@ -133,5 +133,16 @@ FD.photos = (function () {
   function recipePhotos() { return tx('readonly', (s) => s.getAll(), RSTORE).then((r) => r || []); }
   function removeRecipePhoto(recipeId) { return tx('readwrite', (s) => s.delete(recipeId), RSTORE); }
 
-  return { VIEWS, add, list, remove, comparison, exportAll, importAll, setRecipePhoto, recipePhotos, removeRecipePhoto };
+  /* ---- Accès bas niveau pour la synchronisation ---- */
+  function putRaw(kind, rec) { return tx('readwrite', (s) => s.put(rec), kind === 'r' ? RSTORE : STORE); }
+  function deleteRaw(kind, id) { return tx('readwrite', (s) => s.delete(id), kind === 'r' ? RSTORE : STORE); }
+  /** Toutes les photos locales : { key: 'r:<id>' | 'p:<id>', kind, rec }. */
+  async function allRecords() {
+    const out = [];
+    (await list()).forEach((rec) => out.push({ key: 'p:' + rec.id, kind: 'p', rec }));
+    (await recipePhotos()).forEach((rec) => out.push({ key: 'r:' + rec.id, kind: 'r', rec }));
+    return out;
+  }
+
+  return { VIEWS, add, list, remove, comparison, exportAll, importAll, setRecipePhoto, recipePhotos, removeRecipePhoto, shrink, putRaw, deleteRaw, allRecords, blobToDataURL };
 })();

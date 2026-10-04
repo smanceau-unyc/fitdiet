@@ -69,7 +69,24 @@
     } catch (e) {
       FD.sync.setCfg({ lastError: e.message });
       if (manual) toast(e.message);
-    } finally { syncing = false; if (ui.route === 'parametres') render(); }
+    } finally { syncing = false; if (ui.route === 'parametres') render(); schedulePhotoSync(1500); }
+  }
+
+  /* ---- Photos ---- */
+  let photoTimer = null, photoSyncing = false;
+  function tombstone(key) { S.meta.photoTombstones = S.meta.photoTombstones || {}; S.meta.photoTombstones[key] = new Date().toISOString(); save(); }
+  function schedulePhotoSync(delay) { if (!syncOK()) return; clearTimeout(photoTimer); photoTimer = setTimeout(() => syncPhotosNow(false), delay || 5000); }
+  async function syncPhotosNow(manual) {
+    if (!syncOK() || photoSyncing) return;
+    photoSyncing = true;
+    const status = (t) => { ui.photoSyncMsg = t; const el = document.getElementById('photo-sync-status'); if (el) el.textContent = t; };
+    try {
+      const r = await FD.sync.syncPhotos(S.meta.photoTombstones || {}, status);
+      if (r.down || r.del) { if (ui.route === 'recettes' || ui.route === 'journal' || ui.route === 'tableau') fillRecipePhotos(); if (ui.route === 'suivi') fillPhotos(); }
+      status(r.up || r.down || r.del ? 'Photos : ' + r.up + ' envoyée(s), ' + r.down + ' reçue(s)' + (r.del ? ', ' + r.del + ' supprimée(s)' : '') + '.' : 'Photos à jour.');
+      if (manual) toast(ui.photoSyncMsg);
+    } catch (e) { status('Photos : ' + e.message); if (manual) toast(e.message); }
+    finally { photoSyncing = false; }
   }
 
   function adoptRemote(remote, msg) {
@@ -86,8 +103,9 @@
     if (FD.sync.enabled()) {
       h += '<p>Synchronisation <strong>active</strong> sur cet appareil. Tes données sont chiffrées avec ta phrase secrète avant d\'être envoyées dans un gist privé de ton compte GitHub.</p>' +
         '<p class="small muted">Dernière synchro : ' + (c.lastSyncAt ? esc(new Date(c.lastSyncAt).toLocaleString('fr-FR')) : 'jamais') + (c.lastError ? ' · <span style="color:var(--warn)">' + esc(c.lastError) + '</span>' : '') + '</p>' +
-        '<div class="inline"><button class="btn primary" data-action="sync-now">Synchroniser maintenant</button><button class="btn ghost danger" data-action="sync-off">Désactiver sur cet appareil</button></div>' +
-        '<p class="small muted">Les modifications partent automatiquement quelques secondes après chaque saisie ; l\'app vérifie l\'autre appareil à l\'ouverture et quand tu y reviens. Les photos ne sont pas synchronisées (export / import séparé).</p>';
+        '<div class="inline"><button class="btn primary" data-action="sync-now">Synchroniser maintenant</button><button class="btn" data-action="sync-photos">Synchroniser les photos</button><button class="btn ghost danger" data-action="sync-off">Désactiver sur cet appareil</button></div>' +
+        '<p class="small" id="photo-sync-status">' + esc(ui.photoSyncMsg || (c.lastPhotoSyncAt ? 'Photos synchronisées le ' + new Date(c.lastPhotoSyncAt).toLocaleString('fr-FR') + '.' : 'Photos pas encore synchronisées.')) + '</p>' +
+        '<p class="small muted">Les données partent automatiquement quelques secondes après chaque saisie ; l\'app vérifie l\'autre appareil à l\'ouverture et quand tu y reviens. Les photos (recettes et progression) suivent aussi, chiffrées, dans un second gist ; la première synchro des photos peut prendre une minute.</p>';
     } else {
       h += '<p>Pour retrouver les mêmes données sur ton Mac et ton téléphone, l\'app peut les stocker <strong>chiffrées</strong> dans un gist privé de ton compte GitHub.</p>' +
         '<ol class="small" style="margin:0;padding-left:20px"><li>Crée un jeton GitHub limité aux gists : <a href="https://github.com/settings/tokens/new?scopes=gist&description=FitDiet%20Coach" target="_blank" rel="noopener">ouvrir la page GitHub</a> (case « gist » déjà cochée, choisis une expiration), puis « Generate token » et copie-le.</li>' +
@@ -1156,6 +1174,7 @@
       case 'theme': S.settings.theme = el.dataset.v; applyTheme(); commit(); break;
       case 'export': FD.storage.exportJSON(S); toast('Export téléchargé.'); break;
       case 'sync-now': syncNow(true); break;
+      case 'sync-photos': syncPhotosNow(true); break;
       case 'sync-off':
         if (!confirm('Désactiver la synchronisation sur cet appareil ? Tes données locales et celles en ligne sont conservées.')) break;
         FD.sync.clearCfg(); render(); toast('Synchronisation désactivée sur cet appareil.'); break;
@@ -1217,7 +1236,7 @@
       case 'r-close': ui.recipe = null; ui.rIngsFor = null; render(); break;
       case 'r-cat': ui.rCat = el.dataset.c; render(); break;
       case 'fav': { const on = R.toggleFav(S, el.dataset.id); const r = R.byId(S, el.dataset.id); commit((on ? '★ Ajouté aux favoris' : 'Retiré des favoris') + (r ? ' : ' + r.name : '') + '.'); break; }
-      case 'r-photo-del': FD.photos.removeRecipePhoto(el.dataset.id).then(() => { toast('Photo retirée : illustration rétablie.'); render(); }); break;
+      case 'r-photo-del': tombstone('r:' + el.dataset.id); FD.photos.removeRecipePhoto(el.dataset.id).then(() => { schedulePhotoSync(); toast('Photo retirée : illustration rétablie.'); render(); }); break;
       case 'r-col-remove': {
         const c = el.dataset.c;
         if (!confirm('Retirer toutes les recettes de la collection « ' + c + ' » ?')) break;
@@ -1315,7 +1334,7 @@
       case 'photo-view': ui.photoView = el.dataset.v; document.querySelectorAll('[data-action="photo-view"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === ui.photoView))); fillPhotos(); break;
       case 'photo-del':
         if (!confirm('Supprimer cette photo ?')) break;
-        FD.photos.remove(el.dataset.id).then(() => { toast('Photo supprimée.'); fillPhotos(); });
+        tombstone('p:' + el.dataset.id); FD.photos.remove(el.dataset.id).then(() => { toast('Photo supprimée.'); fillPhotos(); schedulePhotoSync(); });
         break;
       case 'photos-export':
         FD.photos.exportAll().then((data) => {
@@ -1406,7 +1425,7 @@
       case 'r-photo': {
         const file = el.files && el.files[0];
         if (!file) break;
-        FD.photos.setRecipePhoto(el.dataset.id, file).then(() => { toast('Photo enregistrée sur cet appareil.'); fillRecipePhotos(); }).catch((e) => toast(e.message));
+        FD.photos.setRecipePhoto(el.dataset.id, file).then(() => { toast(syncOK() ? 'Photo enregistrée (synchronisation dans quelques secondes).' : 'Photo enregistrée sur cet appareil.'); fillRecipePhotos(); schedulePhotoSync(); }).catch((e) => toast(e.message));
         break;
       }
       case 'r-photos-bulk': {
@@ -1423,6 +1442,7 @@
             if (!r) { miss.push(f.name); continue; }
             try { await FD.photos.setRecipePhoto(r.id, f); ok++; } catch (e) { miss.push(f.name); }
           }
+          schedulePhotoSync(3000);
           toast(ok + ' photo(s) associée(s)' + (miss.length ? ' · ' + miss.length + ' non reconnue(s) : ' + miss.slice(0, 3).join(', ') + (miss.length > 3 ? '…' : '') : '') + '.');
           render();
         })();
@@ -1483,7 +1503,7 @@
       case 'photos-import': {
         const file = el.files && el.files[0];
         if (!file) break;
-        file.text().then((t) => FD.photos.importAll(JSON.parse(t))).then((n) => toast(n + ' photo(s) importée(s).')).catch((e) => toast(e.message || 'Import impossible.'));
+        file.text().then((t) => FD.photos.importAll(JSON.parse(t))).then((n) => { toast(n + ' photo(s) importée(s).'); schedulePhotoSync(3000); }).catch((e) => toast(e.message || 'Import impossible.'));
         break;
       }
       case 'ciq-label': ui.ciqLabel = el.value.trim() || 'CIQUAL'; break;
@@ -1631,7 +1651,7 @@
             if (confirm('Des données existent déjà en ligne (modifiées le ' + when + ').\n\nOK : les récupérer sur cet appareil (remplace les données actuelles de cet appareil).\nAnnuler : envoyer les données de cet appareil à la place.')) adoptRemote(remote, 'Synchronisation activée : données récupérées.');
             else { await FD.sync.push(S); render(); toast('Synchronisation activée : données de cet appareil envoyées.'); }
           } else { await FD.sync.push(S); render(); toast('Synchronisation activée : données envoyées.'); }
-        }).catch((e) => { FD.sync.clearCfg(); toast(e.message); render(); });
+        }).then(() => schedulePhotoSync(1500)).catch((e) => { FD.sync.clearCfg(); toast(e.message); render(); });
         break;
       }
       case 'barcode': {
@@ -1644,7 +1664,7 @@
         const file = form.elements.file.files[0];
         if (!file) { toast('Choisis une photo.'); break; }
         ui.photoView = v.view;
-        FD.photos.add(file, v.date || today(), v.view).then(() => { toast('Photo ajoutée.'); form.reset(); fillPhotos(); }).catch((e) => toast(e.message));
+        FD.photos.add(file, v.date || today(), v.view).then(() => { toast('Photo ajoutée.'); form.reset(); fillPhotos(); schedulePhotoSync(); }).catch((e) => toast(e.message));
         break;
       }
       case 'recipe': {
