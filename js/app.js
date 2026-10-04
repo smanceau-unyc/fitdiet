@@ -105,7 +105,7 @@
       '<div class="row">' +
         '<section class="card" aria-label="Cible du jour"><div class="card-head"><h2>Cible</h2><span class="badge">' + esc(tg.type.label) + (d.session && d.session !== planned ? ' · modifiée' : '') + '</span></div>' +
           '<div class="inline" style="align-items:baseline"><span class="big-num accent">' + U.num(Math.round(tot.kcal)) + '</span><span class="muted">/ ' + U.kcal(tg.kcal) + ' kcal</span></div>' +
-          '<p>' + esc(status) + '</p>' + (function () { let r = null; try { r = (d.foods || []).length && FD.planner.completeDay ? FD.planner.completeDay(S, iso, { top: 1 }) : null; } catch (e) { console.error(e); } return r && r.options.length && r.slots.length >= 2 ? '<p class="small">Idée pour finir la journée : <strong>' + esc(r.options[0].meals.map((m) => m.recipe.name).join(' + ')) + '</strong>.</p><a class="btn" href="#/journal">Voir les combinaisons</a>' : ''; })() +
+          '<p>' + esc(status) + '</p>' + (function () { let r = null; try { r = (d.foods || []).length && FD.planner.completeDay ? FD.planner.completeDay(S, iso, { top: 1 }) : null; } catch (e) { console.error(e); } return r && r.options.length && r.slots.length >= 1 ? '<p class="small">Idée pour finir la journée : <strong>' + esc(r.options[0].meals.map((m) => m.recipe.name).join(' + ')) + '</strong>.</p><a class="btn" href="#/journal">Voir les combinaisons</a>' : ''; })() +
           '<a class="btn primary" href="#/journal">Ajouter un repas</a></section>' +
         '<section class="card wide" aria-label="Macronutriments">' +
           meter('Protéines', tot.p, tg.p, 'g', 'p') + meter('Glucides', tot.g, tg.g, 'g') + meter('Lipides', tot.l, tg.l, 'g', 'l') + meter('Fibres', tot.fib, tg.fib, 'g', 'p') +
@@ -721,16 +721,17 @@
     let res;
     try { res = FD.planner.completeDay(S, iso); } catch (e) { console.error(e); return ''; }
     ui.cd = res;
-    if (res.slots.length < 2 || !res.options.length) return '';
+    if (!res.slots.length || !res.options.length) return '';
     ui.cdShown = true;
     const T = res.target;
     const row = (lab, v, t, u) => '<span>' + lab + ' <strong>' + U.num(v) + '</strong>/' + U.num(t) + (u || '') + '</span>';
     return '<section class="card" aria-label="Compléter ma journée"><div class="card-head"><h2>Compléter ma journée</h2><span class="small muted">' + res.slots.map((m) => MEAL_LABEL[m]).join(' + ') + '</span></div>' +
       '<p>Il te reste environ <strong>' + U.kcal(res.remaining.kcal) + ' kcal</strong>, ' + U.num(Math.max(0, res.remaining.p)) + ' g de protéines, ' + U.num(Math.max(0, res.remaining.g)) + ' g de glucides et ' + U.num(Math.max(0, res.remaining.l)) + ' g de lipides. Voici les combinaisons qui bouclent le mieux ta journée :</p>' +
       res.options.map((o, i) => '<div class="option' + (i === 0 ? ' recommended' : '') + '"><div class="between"><strong>Option ' + (i + 1) + '</strong>' + (i === 0 ? '<span class="badge ok">La plus proche</span>' : '') + '</div>' +
-        o.meals.map((m) => '<div class="cd-meal"><div class="recipe-thumb small-thumb" data-photo="' + esc(m.recipe.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, m.recipe) + '</div><div class="stack" style="gap:2px;min-width:0"><span class="small muted">' + esc(MEAL_LABEL[m.meal]) + '</span><strong>' + esc(m.recipe.name) + '</strong><span class="small muted">' + m.fit.ingredients.map(ingLabel).join(', ') + '</span><span class="small">' + macroLine(m.fit.totals) + '</span></div></div>').join('') +
+        o.meals.map((m) => '<div class="cd-meal"><div class="recipe-thumb small-thumb" data-photo="' + esc(m.recipe.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, m.recipe) + '</div><div class="stack" style="gap:2px;min-width:0;flex:1"><span class="small muted">' + esc(MEAL_LABEL[m.meal]) + '</span><strong>' + esc(m.recipe.name) + '</strong><span class="small muted">' + m.fit.ingredients.map(ingLabel).join(', ') + '</span><span class="small">' + macroLine(m.fit.totals) + '</span>' +
+          (o.meals.length > 1 ? '<div><button class="btn sm ghost" data-action="cd-add-one" data-idx="' + i + '" data-m="' + o.meals.indexOf(m) + '">Ajouter seulement ce ' + esc(MEAL_LABEL[m.meal].toLowerCase()) + '</button></div>' : '') + '</div></div>').join('') +
         '<div class="inline small" style="gap:14px;padding-top:6px;border-top:1px solid var(--line)"><span class="muted">Journée :</span>' + row('kcal', o.totals.kcal, T.kcal) + row('P', o.totals.p, T.p, ' g') + row('G', o.totals.g, T.g, ' g') + row('L', o.totals.l, T.l, ' g') + '</div>' +
-        '<div class="inline"><button class="btn sm' + (i === 0 ? ' primary' : '') + '" data-action="cd-add" data-idx="' + i + '">Ajouter ces repas au journal</button></div></div>').join('') +
+        '<div class="inline"><button class="btn sm' + (i === 0 ? ' primary' : '') + '" data-action="cd-add" data-idx="' + i + '">' + (o.meals.length > 1 ? 'Ajouter ces ' + o.meals.length + ' repas au journal' : 'Ajouter ce repas au journal') + '</button></div></div>').join('') +
       '<p class="small muted">Portions recalculées à partir des ingrédients ; le dîner est recalé sur ce qu\'il reste après le déjeuner et la collation. Les recettes sans photo affichent leur illustration.</p></section>';
   }
 
@@ -1100,6 +1101,14 @@
         T.clearMetrics(S, el.dataset.date); commit('Mesures effacées.'); break;
 
       // --- Recettes ---
+      case 'cd-add-one': {
+        const o = ui.cd && ui.cd.options[+el.dataset.idx];
+        const m = o && o.meals[+el.dataset.m];
+        if (!m) break;
+        logIngredients(ui.jDate, m.meal, m.fit.ingredients, m.recipe, 'portion ajustée');
+        commit('« ' + m.recipe.name + ' » ajouté. Les suggestions se recalculent pour le repas suivant.');
+        break;
+      }
       case 'cd-add': {
         const o = ui.cd && ui.cd.options[+el.dataset.idx];
         if (!o) break;

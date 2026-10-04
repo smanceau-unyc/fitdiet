@@ -1,4 +1,4 @@
-# FitDiet Coach — version 3.9.3
+# FitDiet Coach — version 3.9.4
 
 Application de suivi nutritionnel sportif en HTML/CSS/JavaScript vanilla.
 Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun serveur.
@@ -19,6 +19,7 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Photos de progression** (V3) : face / profil / dos, datées, stockées uniquement dans le navigateur (IndexedDB), comparaison dernière / 1 semaine / 1 mois / 3 mois, export/import séparé.
 - **Fruits et légumes à la pièce** (V3.1) : 1 banane, 1 tomate, 1 poignée de salade… avec calibre petit / moyen / gros et l'équivalent en grammes affiché ; 30 fruits et légumes ajoutés.
 - **Ciqual 2025 intégrée hors ligne** (V3.3) : 3 385 aliments de la table ANSES, dont environ 400 plats composés (lasagnes, couscous, hachis parmentier, quiches, pizzas, soupes, salades composées), 66 sandwichs, viennoiseries, desserts et boissons, avec portions types (assiette, part, bol, sandwich, verre). Les aliments de base sont liés à Ciqual (sauf skyr, whey, crème de riz). Licence Ouverte Etalab 2.0 ; données converties depuis github.com/OlivierFitter/ciqual_2025_complete.
+- **Compléter ma journée, affiné** (V3.9.4) : tient compte du nombre de repas par jour du profil (repas déjà saisis décomptés) ; bouton « Ajouter seulement ce déjeuner / dîner » dans chaque option ; propositions aussi quand il ne reste qu'un repas.
 - **Journal regroupé** (V3.9.3) : une recette ou un repas type ajouté s'affiche sur une seule ligne (photo, nom, portion, calories et macros totales), avec multiplicateur de portion, détail des ingrédients dépliable et suppression en un clic.
 - **Recettes dans le journal** (V3.9.2) : onglet « Recettes » (par défaut) avec recherche, catégories, photos ; ajout de ½, 1, 1 ½ ou 2 portions, ou portion ajustée à ce qu'il reste pour le repas.
 - **Variété** (V3.9.1) : batch cooking désactivé par défaut et limité au déjeuner (2, 3 ou 4 jours) ; jamais le même plat que la veille au même repas ; environ 21 plats différents par semaine.

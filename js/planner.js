@@ -209,7 +209,11 @@ FD.planner = (function () {
     const n = Math.min(5, Math.max(3, state.profile.mealsPerDay || 4));
     const wanted = n >= 4 ? ['dejeuner', 'collation', 'diner'] : ['dejeuner', 'diner'];
     const logged = (m) => (day.foods || []).some((e) => e.meal === m);
-    const slots = wanted.filter((m) => !logged(m));
+    // Nombre de repas restants = repas par jour (profil) − repas déjà saisis, quels qu'ils soient
+    const loggedCount = ['petitdej', 'dejeuner', 'collation', 'diner'].filter(logged).length;
+    const left = Math.max(0, n - loggedCount);
+    let slots = wanted.filter((m) => !logged(m));
+    if (slots.length > left) slots = slots.slice(slots.length - left); // on garde les derniers repas de la journée
     if (!slots.length) return { slots, options: [], remaining: null, target, eaten };
     const remaining = { kcal: target.kcal - eaten.kcal, p: target.p - eaten.p, g: target.g - eaten.g, l: target.l - eaten.l };
     if (remaining.kcal < 150) return { slots, options: [], remaining, target, eaten };
