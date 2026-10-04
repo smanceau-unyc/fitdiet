@@ -99,11 +99,14 @@ FD.photos = (function () {
     return new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.readAsDataURL(blob); });
   }
 
+  /** Export : photos de progression + photos de recettes. */
   async function exportAll() {
     const all = await list();
     const out = [];
     for (const p of all) out.push({ id: p.id, date: p.date, view: p.view, data: await blobToDataURL(p.blob) });
-    return { type: 'fitdiet-coach-photos', version: 1, photos: out };
+    const rec = [];
+    for (const p of await recipePhotos()) rec.push({ id: p.id, data: await blobToDataURL(p.blob) });
+    return { type: 'fitdiet-coach-photos', version: 2, photos: out, recipes: rec };
   }
 
   async function importAll(json) {
@@ -112,6 +115,11 @@ FD.photos = (function () {
     for (const p of json.photos) {
       const blob = await (await fetch(p.data)).blob();
       await tx('readwrite', (s) => s.put({ id: p.id, date: p.date, view: p.view, blob, addedAt: new Date().toISOString() }));
+      n++;
+    }
+    for (const p of (json.recipes || [])) {
+      const blob = await (await fetch(p.data)).blob();
+      await tx('readwrite', (s) => s.put({ id: p.id, blob, addedAt: new Date().toISOString() }), RSTORE);
       n++;
     }
     return n;

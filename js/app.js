@@ -27,8 +27,78 @@
   /* Utilitaires d'affichage                                              */
   /* ------------------------------------------------------------------ */
 
-  function save() { if (!FD.storage.save(S)) toast('Enregistrement impossible : le stockage du navigateur est plein ou bloqué.'); }
+  /** Enregistre localement ; chaque modification est horodatée et programmée pour la synchro. */
+  function save(opts) {
+    if (!(opts && opts.keepStamp)) S.meta.updatedAt = new Date().toISOString();
+    if (!FD.storage.save(S)) toast('Enregistrement impossible : le stockage du navigateur est plein ou bloqué.');
+    if (!(opts && opts.keepStamp)) schedulePush();
+  }
   function commit(msg) { save(); render(); if (msg) toast(msg); }
+
+  /* ---------------- Synchronisation entre appareils ---------------- */
+  const syncOK = () => FD.sync && FD.sync.enabled() && !(FD.api && FD.api.blocked());
+  let pushTimer = null, syncing = false, lastPullAt = 0;
+  function schedulePush() {
+    if (!syncOK()) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => {
+      FD.sync.push(S).then(() => { if (ui.route === 'parametres') render(); })
+        .catch((e) => { FD.sync.setCfg({ lastError: e.message }); });
+    }, 3000);
+  }
+
+  /** Compare avec la version en ligne et applique la plus récente (demande en cas de conflit). */
+  async function syncNow(manual) {
+    if (!syncOK() || syncing) return;
+    syncing = true;
+    try {
+      const remote = await FD.sync.pull();
+      const c = FD.sync.cfg();
+      const localAt = S.meta.updatedAt || '', remoteAt = remote && remote.meta && remote.meta.updatedAt || '';
+      const lastSync = c.lastSync || '';
+      if (!remote || !remoteAt) { await FD.sync.push(S); if (manual) toast('Données envoyées.'); }
+      else if (remoteAt === localAt) { FD.sync.setCfg({ lastSync: localAt, lastSyncAt: new Date().toISOString(), lastError: null }); if (manual) toast('Déjà à jour.'); }
+      else if (remoteAt > localAt && localAt <= lastSync) adoptRemote(remote, 'Données mises à jour depuis ton autre appareil.');
+      else if (localAt > remoteAt && remoteAt <= lastSync) { await FD.sync.push(S); if (manual) toast('Données envoyées.'); }
+      else {
+        const takeRemote = confirm('Tes deux appareils ont été modifiés depuis la dernière synchronisation.\n\nOK : garder la version de l\'autre appareil (modifiée le ' + new Date(remoteAt).toLocaleString('fr-FR') + ').\nAnnuler : garder celle de cet appareil (modifiée le ' + new Date(localAt).toLocaleString('fr-FR') + ').');
+        if (takeRemote) adoptRemote(remote, 'Version de l\'autre appareil récupérée.');
+        else { await FD.sync.push(S); toast('Version de cet appareil envoyée.'); }
+      }
+      lastPullAt = Date.now();
+    } catch (e) {
+      FD.sync.setCfg({ lastError: e.message });
+      if (manual) toast(e.message);
+    } finally { syncing = false; if (ui.route === 'parametres') render(); }
+  }
+
+  function adoptRemote(remote, msg) {
+    S = FD.storage.parseImport(JSON.stringify(remote));
+    save({ keepStamp: true });
+    FD.sync.setCfg({ lastSync: S.meta.updatedAt, lastSyncAt: new Date().toISOString(), lastError: null });
+    applyTheme(); render(); toast(msg);
+  }
+
+  function syncHTML() {
+    const c = FD.sync.cfg();
+    let h = '<section class="card"><h2>Synchronisation entre appareils</h2>';
+    if (FD.api.blocked()) return h + '<div class="alert warn">Cette version en ligne ne peut pas se connecter à GitHub. Active la synchronisation depuis ton site GitHub Pages (ou la version téléchargée).</div></section>';
+    if (FD.sync.enabled()) {
+      h += '<p>Synchronisation <strong>active</strong> sur cet appareil. Tes données sont chiffrées avec ta phrase secrète avant d\'être envoyées dans un gist privé de ton compte GitHub.</p>' +
+        '<p class="small muted">Dernière synchro : ' + (c.lastSyncAt ? esc(new Date(c.lastSyncAt).toLocaleString('fr-FR')) : 'jamais') + (c.lastError ? ' · <span style="color:var(--warn)">' + esc(c.lastError) + '</span>' : '') + '</p>' +
+        '<div class="inline"><button class="btn primary" data-action="sync-now">Synchroniser maintenant</button><button class="btn ghost danger" data-action="sync-off">Désactiver sur cet appareil</button></div>' +
+        '<p class="small muted">Les modifications partent automatiquement quelques secondes après chaque saisie ; l\'app vérifie l\'autre appareil à l\'ouverture et quand tu y reviens. Les photos ne sont pas synchronisées (export / import séparé).</p>';
+    } else {
+      h += '<p>Pour retrouver les mêmes données sur ton Mac et ton téléphone, l\'app peut les stocker <strong>chiffrées</strong> dans un gist privé de ton compte GitHub.</p>' +
+        '<ol class="small" style="margin:0;padding-left:20px"><li>Crée un jeton GitHub limité aux gists : <a href="https://github.com/settings/tokens/new?scopes=gist&description=FitDiet%20Coach" target="_blank" rel="noopener">ouvrir la page GitHub</a> (case « gist » déjà cochée, choisis une expiration), puis « Generate token » et copie-le.</li>' +
+        '<li>Choisis une phrase secrète (8 caractères minimum) : elle chiffre tes données. <strong>Note-la</strong>, elle n\'est récupérable nulle part.</li>' +
+        '<li>Fais la même chose sur ton autre appareil avec <strong>le même jeton et la même phrase</strong>.</li></ol>' +
+        '<form class="form-grid" data-form="sync" style="margin-top:8px"><label>Jeton GitHub<input type="password" name="token" autocomplete="off" placeholder="ghp_…" required></label>' +
+        '<label>Phrase secrète<input type="password" name="pass" autocomplete="new-password" minlength="8" required></label>' +
+        '<div style="align-self:end"><button class="btn primary" type="submit">Activer la synchronisation</button></div></form>';
+    }
+    return h + '</section>';
+  }
 
   let toastTimer;
   function toast(msg) {
@@ -627,8 +697,9 @@
           '<label class="btn" style="flex-direction:row">Importer mes données<input type="file" accept="application/json,.json" data-change="import" class="sr-only"></label></div>' +
           '<p class="small muted">L\'import remplace l\'intégralité des données actuelles par celles du fichier.</p>' +
           '<div class="inline"><button class="btn" data-action="photos-export">Exporter mes photos</button><label class="btn" style="flex-direction:row">Importer des photos<input type="file" accept="application/json,.json" data-change="photos-import" class="sr-only"></label></div>' +
-          '<p class="small muted">Les photos sont exportées à part : le fichier peut être volumineux.</p></section>' +
+          '<p class="small muted">Photos de progression et photos de recettes, exportées à part (fichier volumineux). Pour les avoir sur ton téléphone : exporte ici, puis importe le fichier sur le téléphone.</p></section>' +
       '</div>' +
+      syncHTML() +
       '<section class="card"><h2>Données de démonstration</h2><p>Génère 4 semaines d\'historique fictif (poids stable, tour de taille en baisse, ≈ 6 700 pas) pour explorer les graphiques et le coach.</p>' +
         '<div class="inline"><button class="btn" data-action="demo">Charger la démo</button>' + (S.meta.demoData ? '<button class="btn danger" data-action="clear-days">Effacer l\'historique</button>' : '') + '</div>' +
         '<p class="small muted">Attention : la démo remplace ton historique (profil et réglages conservés).' + (S.meta.demoData ? ' Des données de démo sont actuellement chargées.' : '') + '</p></section>' +
@@ -1084,6 +1155,10 @@
       case 'reeval': FD.history.record(S, FD.coach.evaluateUserState(S, today())); commit('Analyse mise à jour.'); break;
       case 'theme': S.settings.theme = el.dataset.v; applyTheme(); commit(); break;
       case 'export': FD.storage.exportJSON(S); toast('Export téléchargé.'); break;
+      case 'sync-now': syncNow(true); break;
+      case 'sync-off':
+        if (!confirm('Désactiver la synchronisation sur cet appareil ? Tes données locales et celles en ligne sont conservées.')) break;
+        FD.sync.clearCfg(); render(); toast('Synchronisation désactivée sur cet appareil.'); break;
       case 'demo':
         if (Object.keys(S.days).length && !confirm('Remplacer ton historique par des données de démonstration ?')) break;
         T.loadDemo(S, today()); S.decisions = []; S.checkins = {}; commit('Données de démo chargées.'); break;
@@ -1244,7 +1319,7 @@
         break;
       case 'photos-export':
         FD.photos.exportAll().then((data) => {
-          if (!data.photos.length) { toast('Aucune photo à exporter.'); return; }
+          if (!data.photos.length && !(data.recipes || []).length) { toast('Aucune photo à exporter.'); return; }
           const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
           const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'fitdiet-photos-' + today() + '.json';
           document.body.appendChild(link); link.click(); setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 500);
@@ -1546,6 +1621,19 @@
         break;
       }
 
+      case 'sync': {
+        const btn = form.querySelector('button[type=submit]');
+        if (btn) { btn.disabled = true; btn.textContent = 'Connexion…'; }
+        FD.sync.connect((v.token || '').trim(), v.pass || '').then(async (res) => {
+          if (res.remote && res.remote.data) {
+            const remote = await FD.sync.pull();
+            const when = remote && remote.meta && remote.meta.updatedAt ? new Date(remote.meta.updatedAt).toLocaleString('fr-FR') : '?';
+            if (confirm('Des données existent déjà en ligne (modifiées le ' + when + ').\n\nOK : les récupérer sur cet appareil (remplace les données actuelles de cet appareil).\nAnnuler : envoyer les données de cet appareil à la place.')) adoptRemote(remote, 'Synchronisation activée : données récupérées.');
+            else { await FD.sync.push(S); render(); toast('Synchronisation activée : données de cet appareil envoyées.'); }
+          } else { await FD.sync.push(S); render(); toast('Synchronisation activée : données envoyées.'); }
+        }).catch((e) => { FD.sync.clearCfg(); toast(e.message); render(); });
+        break;
+      }
       case 'barcode': {
         const code = String(v.code || '').replace(/\D/g, '');
         if (!/^\d{8,14}$/.test(code)) { toast('Un code-barres compte 8 à 14 chiffres.'); break; }
@@ -1672,4 +1760,6 @@
 
   applyTheme();
   render();
+  if (syncOK()) syncNow(false);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && syncOK() && Date.now() - lastPullAt > 20000) syncNow(false); });
 })();
