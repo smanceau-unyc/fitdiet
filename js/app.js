@@ -172,6 +172,31 @@
     return html;
   }
 
+  /** Entrées d'un repas : les recettes ajoutées en une fois sont regroupées (photo, nom, total). */
+  function entriesHTML(entries) {
+    const done = {};
+    return entries.map((e) => {
+      if (!e.group) return entryHTML(e);
+      const gid = e.group.id;
+      if (done[gid]) return '';
+      done[gid] = true;
+      const items = entries.filter((x) => x.group && x.group.id === gid);
+      const tot = N.totals(items);
+      const r = e.group.recipeId ? R.byId(S, e.group.recipeId) : null;
+      const open = ui.openGroups && ui.openGroups[gid];
+      const scale = e.group.scale || 1;
+      return '<div class="entry-group"><div class="group-row">' +
+        (r ? '<div class="recipe-thumb small-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, r) + '</div>' : '<div class="recipe-thumb small-thumb group-icon" aria-hidden="true">≡</div>') +
+        '<div class="stack" style="gap:2px;min-width:0;flex:1"><strong>' + esc(e.group.name) + '</strong><span class="small muted">' + esc(e.group.label || '') + ' · ' + items.length + ' ingrédient' + (items.length > 1 ? 's' : '') + '</span>' +
+        '<span class="small"><strong>' + U.num(tot.kcal) + ' kcal</strong> · P ' + U.num(tot.p) + ' g · G ' + U.num(tot.g) + ' g · L ' + U.num(tot.l) + ' g</span></div>' +
+        '<div class="inline" style="gap:4px;justify-content:flex-end"><label class="sr-only" for="gs-' + gid + '">Portions</label><select id="gs-' + gid + '" data-change="grp-scale" data-id="' + gid + '" style="width:auto;min-height:36px" title="Multiplier la portion">' +
+          opts([[0.5, '× ½'], [0.75, '× ¾'], [1, '× 1'], [1.25, '× 1 ¼'], [1.5, '× 1 ½'], [2, '× 2']], [0.5, 0.75, 1, 1.25, 1.5, 2].includes(scale) ? scale : 1) + '</select>' +
+          '<button class="btn sm ghost" data-action="grp-toggle" data-id="' + gid + '" aria-expanded="' + !!open + '">' + (open ? 'Masquer' : 'Détail') + '</button>' +
+          '<button class="btn sm ghost danger" data-action="grp-del" data-id="' + gid + '" aria-label="Supprimer ' + esc(e.group.name) + '">Supprimer</button></div></div>' +
+        (open ? '<div class="group-items">' + items.map(entryHTML).join('') + '</div>' : '') + '</div>';
+    }).join('');
+  }
+
   function resultsHTML() {
     if (!ui.query.trim()) return '<p class="small muted">Tape le nom d\'un aliment (ex. riz, poulet, skyr).</p>';
     ui.results = F.search(S, ui.query, 12);
@@ -226,7 +251,7 @@
       const entries = (d.foods || []).filter((e) => e.meal === m.id);
       return '<div class="meal"><div class="meal-head"><h3>' + m.label + '</h3><span class="small muted">' + U.num(byMeal[m.id].kcal) + ' / ≈ ' + U.kcal(mt[m.id].kcal) + ' kcal</span></div>' +
         (mt[m.id].note ? '<span class="small teal">' + esc(mt[m.id].note) + '</span>' : '') +
-        (entries.length ? entries.map(entryHTML).join('') : '<p class="small muted" style="padding:6px 0">Rien pour l\'instant.</p>') + '</div>';
+        (entries.length ? entriesHTML(entries) : '<p class="small muted" style="padding:6px 0">Rien pour l\'instant.</p>') + '</div>';
     }).join('');
 
     const tabs = [['recettes', 'Recettes'], ['base', 'Base d\'aliments'], ['scan', 'Scanner'], ['off', 'Open Food Facts'], ['libre', 'Saisie libre'], ['types', 'Repas types']];
@@ -948,9 +973,10 @@
   }
 
   /** Ajoute une liste d'ingrédients au journal d'une date. */
-  function logIngredients(iso, meal, ings) {
+  function logIngredients(iso, meal, ings, recipe, label) {
     let n = 0;
-    ings.forEach((i) => { const f = F.byId(S, i.foodId); if (f) { T.addFood(S, iso, f, i.qty, i.unit, meal); n++; } });
+    const group = recipe ? { id: U.uid(), recipeId: recipe.id, name: recipe.name, label: label || '1 portion', scale: 1 } : null;
+    ings.forEach((i) => { const f = F.byId(S, i.foodId); if (f) { T.addFood(S, iso, f, i.qty, i.unit, meal, group); n++; } });
     return n;
   }
 
@@ -1044,6 +1070,8 @@
         if (t) { T.addTemplate(S, ui.jDate, t); commit(t.name + ' ajouté.'); }
         break;
       }
+      case 'grp-toggle': ui.openGroups = ui.openGroups || {}; ui.openGroups[el.dataset.id] = !ui.openGroups[el.dataset.id]; render(); break;
+      case 'grp-del': T.removeGroup(S, ui.jDate, el.dataset.id); commit('Repas supprimé.'); break;
       case 'entry-del': T.removeFood(S, ui.jDate, el.dataset.id); commit('Supprimé.'); break;
       case 'entry-sub': ui.subEntry = el.dataset.id || null; render(); break;
       case 'apply-option': {
@@ -1075,7 +1103,7 @@
       case 'cd-add': {
         const o = ui.cd && ui.cd.options[+el.dataset.idx];
         if (!o) break;
-        o.meals.forEach((m) => logIngredients(ui.jDate, m.meal, m.fit.ingredients));
+        o.meals.forEach((m) => logIngredients(ui.jDate, m.meal, m.fit.ingredients, m.recipe, 'portion ajustée'));
         commit(o.meals.map((m) => m.recipe.name).join(' + ') + ' ajoutés au journal.');
         break;
       }
@@ -1091,13 +1119,14 @@
           const k = sel ? parseFloat(sel.value) || 1 : 1;
           ings = R.perServing(r).map((i) => Object.assign({}, i, { qty: R.roundQty(i.qty * k, i.unit, F.byId(S, i.foodId)) }));
         }
-        logIngredients(ui.jDate, ui.meal, ings);
+        const sel2 = document.getElementById('jrq-' + r.id);
+        logIngredients(ui.jDate, ui.meal, ings, r, a === 'jr-fit' ? 'portion ajustée' : (U.frac(sel2 ? parseFloat(sel2.value) || 1 : 1) + ' portion' + ((sel2 && parseFloat(sel2.value) > 1) ? 's' : '')));
         commit('« ' + r.name + ' » ajouté au ' + N.MEALS.find((m) => m.id === ui.meal).label.toLowerCase() + '.');
         break;
       }
       case 'sug-add': {
         const x = ui.sug[+el.dataset.idx];
-        if (x) { logIngredients(x.iso, x.meal, x.fit.ingredients); commit(x.recipe.name + ' ajouté au journal.'); }
+        if (x) { logIngredients(x.iso, x.meal, x.fit.ingredients, x.recipe, 'portion ajustée'); commit(x.recipe.name + ' ajouté au journal.'); }
         break;
       }
       case 'r-open': ui.recipe = el.dataset.id; ui.rIngsFor = null; ui.editor = null; if (el.dataset.go) location.hash = '#/' + el.dataset.go; else { render(); window.scrollTo({ top: 0 }); } break;
@@ -1124,7 +1153,7 @@
           const mt = N.mealTargets(tg, S.profile.trainingTime, tg.type.cat !== 'repos')[meal];
           ings = R.fit(S, r, mt, base).ingredients;
         } else ings = base.map((i) => Object.assign({}, i, { qty: R.roundQty(i.qty, i.unit, F.byId(S, i.foodId)) }));
-        logIngredients(today(), meal, ings);
+        logIngredients(today(), meal, ings, r, a === 'r-log-fit' ? 'portion ajustée' : '1 portion');
         commit('1 portion de « ' + r.name + ' » ajoutée au journal.');
         break;
       }
@@ -1158,12 +1187,12 @@
       case 'plan-alt': { FD.planner.alternative(S, S.plan, +el.dataset.d, +el.dataset.m); commit('Nouvelle idée proposée.'); break; }
       case 'plan-log': {
         const d = S.plan.days[+el.dataset.d], m = d.meals[+el.dataset.m];
-        logIngredients(d.iso, m.meal, m.ingredients); commit(m.label + ' du ' + U.frShort(d.iso) + ' ajouté au journal.');
+        logIngredients(d.iso, m.meal, m.ingredients, R.byId(S, m.recipeId), 'portion du plan'); commit(m.label + ' du ' + U.frShort(d.iso) + ' ajouté au journal.');
         break;
       }
       case 'plan-log-day': {
         const d = S.plan.days[+el.dataset.d];
-        d.meals.forEach((m) => logIngredients(d.iso, m.meal, m.ingredients)); commit('Journée du ' + U.frShort(d.iso) + ' ajoutée au journal.');
+        d.meals.forEach((m) => logIngredients(d.iso, m.meal, m.ingredients, R.byId(S, m.recipeId), 'portion du plan')); commit('Journée du ' + U.frShort(d.iso) + ' ajoutée au journal.');
         break;
       }
       case 'plan-clear': if (!confirm('Supprimer le plan ?')) break; S.plan = null; S.shopping.checked = {}; commit('Plan supprimé.'); break;
@@ -1255,6 +1284,7 @@
         commit();
         break;
       }
+      case 'grp-scale': { const k = parseFloat(el.value); if (k > 0) { T.scaleGroup(S, ui.jDate, el.dataset.id, k); commit('Portion mise à jour, macros recalculées.'); } break; }
       case 'entry-qty': {
         const n = U.parseNum(el.value);
         if (n && n > 0) { T.updateFood(S, ui.jDate, el.dataset.id, { qty: n }); commit(); } else render();

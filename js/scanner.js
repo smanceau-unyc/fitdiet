@@ -17,7 +17,7 @@ FD.scanner = (function () {
     if (window.ZXing) return Promise.resolve();
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'js/vendor/zxing.min.js?v=3.9.2';
+      s.src = 'js/vendor/zxing.min.js?v=3.9.3';
       s.onload = resolve;
       s.onerror = () => reject(new Error('Décodeur de code-barres introuvable (js/vendor/zxing.min.js).'));
       document.head.appendChild(s);

@@ -37,9 +37,9 @@ FD.tracking = (function () {
     if (!d.foods || !d.foods.length) delete state.days[iso];
   }
 
-  function addFood(state, iso, food, qty, unit, meal) {
+  function addFood(state, iso, food, qty, unit, meal, group) {
     const d = ensureDay(state, iso);
-    const entry = { id: U.uid(), food: FD.nutrition.snapshot(food), qty, unit, meal };
+    const entry = Object.assign({ id: U.uid(), food: FD.nutrition.snapshot(food), qty, unit, meal }, group ? { group } : {});
     d.foods.push(entry);
     return entry;
   }
@@ -53,9 +53,10 @@ FD.tracking = (function () {
 
   function addTemplate(state, iso, tpl) {
     let n = 0;
+    const group = { id: U.uid(), name: tpl.name, label: 'repas type', scale: 1 };
     tpl.items.forEach((it) => {
       const f = FD.foods.byId(state, it.foodId);
-      if (f) { addFood(state, iso, f, it.qty, it.unit, tpl.meal); n++; }
+      if (f) { addFood(state, iso, f, it.qty, it.unit, tpl.meal, group); n++; }
     });
     return n;
   }
@@ -65,6 +66,26 @@ FD.tracking = (function () {
     if (!d) return;
     const e = d.foods.find((x) => x.id === entryId);
     if (e) Object.assign(e, patch);
+  }
+
+  /** Supprime toutes les entrées d'un groupe (recette ajoutée en une fois). */
+  function removeGroup(state, iso, groupId) {
+    const d = state.days[iso];
+    if (!d) return;
+    d.foods = d.foods.filter((x) => !(x.group && x.group.id === groupId));
+  }
+
+  /** Change le nombre de portions d'un groupe : toutes les quantités sont mises à l'échelle. */
+  function scaleGroup(state, iso, groupId, newScale) {
+    const d = state.days[iso];
+    if (!d || !(newScale > 0)) return;
+    d.foods.forEach((x) => {
+      if (!x.group || x.group.id !== groupId) return;
+      const old = x.group.scale || 1;
+      const q = x.qty * newScale / old;
+      x.qty = FD.foods.isPiece(x.unit) || x.unit === 'portion' ? Math.max(0.5, Math.round(q * 2) / 2) : Math.round(q * 10) / 10;
+      x.group = Object.assign({}, x.group, { scale: newScale });
+    });
   }
 
   function removeFood(state, iso, entryId) {
@@ -147,5 +168,5 @@ FD.tracking = (function () {
     state.meta.demoData = true;
   }
 
-  return { getDay, ensureDay, setMetrics, clearMetrics, addFood, addFree, addTemplate, updateFood, removeFood, substitute, dayTotals, activityEstimate, loadDemo };
+  return { getDay, ensureDay, setMetrics, clearMetrics, addFood, addFree, addTemplate, updateFood, removeFood, removeGroup, scaleGroup, substitute, dayTotals, activityEstimate, loadDemo };
 })();
