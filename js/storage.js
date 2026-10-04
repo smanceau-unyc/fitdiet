@@ -67,6 +67,7 @@ FD.storage = (function () {
       customFoods: [],   // aliments ajoutés (Open Food Facts, Ciqual, saisie manuelle)
       foodLinks: {},     // id aliment démo -> id aliment Ciqual dont il prend les valeurs
       recipes: [],       // recettes saisies par l'utilisateur
+      favorites: {},     // id recette -> true (recettes favorites)
       plan: null,        // plan alimentaire généré
       planSettings: null,
       shopping: { checked: {} },

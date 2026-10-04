@@ -288,3 +288,7 @@ footer.legal { font-size: 13px; color: var(--muted); border-top: 1px solid var(-
 .group-items { padding: 0 0 8px 16px; border-left: 2px solid var(--line-strong); margin: 0 0 8px 34px; }
 .group-icon { display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--accent); }
 @media (max-width: 640px) { .group-row > .inline { width: 100%; justify-content: flex-start; } .group-items { margin-left: 8px; } }
+
+.fav-btn { background: transparent; border: 0; cursor: pointer; font-size: 22px; line-height: 1; color: var(--muted); min-width: 36px; min-height: 36px; padding: 0; }
+.fav-btn[aria-pressed="true"] { color: var(--accent); }
+.fav-btn:hover { color: var(--accent); }

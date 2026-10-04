@@ -71,6 +71,7 @@ FD.planner = (function () {
     const maxT = parseInt(state.profile.cookTime, 10) || 30;
     if (time > maxT) score += Math.min(0.15, (time - maxT) / 120);
     if (ctx.prefer && r.source && r.source.collection === ctx.prefer) score -= 0.15;
+    if (FD.recipes.isFav(state, r.id)) score -= ctx.favBoost || 0.12; // les favoris passent plus souvent
     const pref = String(state.profile.preferred || '').split(/[,;]/).map((t) => U.norm(t).trim()).filter((t) => t.length >= 3);
     if (pref.some((t) => U.norm(r.name).includes(t))) score -= 0.12;
     if (slot.tag === 'pré-séance' && (r.tags || []).includes('pre-seance')) score -= 0.1;
@@ -85,6 +86,7 @@ FD.planner = (function () {
     if (!pool || pool === 'all' || pool.startsWith('prefer:')) return all;
     if (pool === 'app') return all.filter((r) => !r.source || r.source.type === 'app');
     if (pool === 'user') return all.filter((r) => r.source && r.source.type === 'user');
+    if (pool === 'fav') return all; // « privilégier » : toutes les recettes, avec un avantage marqué aux favoris
     if (pool.startsWith('only:')) {
       const c = pool.slice(5);
       const only = all.filter((r) => r.source && r.source.collection === c);
@@ -105,7 +107,7 @@ FD.planner = (function () {
     const s = Object.assign(defaultSettings(state), settings || {});
     const rand = rng(s.seed || 1);
     const wb = FD.prices ? FD.prices.weeklyBudget(state) : null;
-    const ctx = { uses: {}, basket: {}, budget: s.budget, rand, today: [], mealBudget: wb ? wb / 7 / s.mealsPerDay : null, prefer: s.pool && s.pool.startsWith('prefer:') ? s.pool.slice(7) : null };
+    const ctx = { uses: {}, basket: {}, budget: s.budget, rand, today: [], mealBudget: wb ? wb / 7 / s.mealsPerDay : null, prefer: s.pool && s.pool.startsWith('prefer:') ? s.pool.slice(7) : null, favBoost: s.pool === 'fav' ? 0.35 : 0.12 };
     const recipes = poolOf(state, s.pool);
     const batch = {}; // déjeuner → { recipe, left } : un prep'meal cuisiné une fois sert plusieurs jours
     const batchDays = s.batch === true ? 2 : Math.max(0, parseInt(s.batch, 10) || 0); // nombre de jours couverts (0 = désactivé)
@@ -249,6 +251,7 @@ FD.planner = (function () {
         const tot = FD.nutrition.add(Object.assign({}, sofar), f.totals);
         const meals = picked.concat([{ meal: last, recipe: r, fit: f }]);
         let e = err(tot);
+        e -= 0.015 * meals.filter((m) => FD.recipes.isFav(state, m.recipe.id)).length; // léger avantage aux favoris
         const cats = meals.map((m) => FD.recipes.category(m.recipe));
         if (new Set(cats).size < cats.length) e += 0.04; // un peu de variété
         combos.push({ meals, totals: tot, error: e });

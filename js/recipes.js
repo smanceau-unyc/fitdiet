@@ -267,5 +267,13 @@ FD.recipes = (function () {
     return c;
   }
 
-  return { CATEGORIES, category, cookEquivalent, importCollection, collections, all, byId, sourceLabel, compute, roundQty, perServing, fit, fitError, substitutesFor, substitute, foodAllowed, recipeAllowed, suggest, SOURCE_APP };
+  /** Recettes favorites. */
+  function isFav(state, id) { return !!(state.favorites && state.favorites[id]); }
+  function toggleFav(state, id) {
+    state.favorites = state.favorites || {};
+    if (state.favorites[id]) delete state.favorites[id]; else state.favorites[id] = true;
+    return !!state.favorites[id];
+  }
+
+  return { isFav, toggleFav, CATEGORIES, category, cookEquivalent, importCollection, collections, all, byId, sourceLabel, compute, roundQty, perServing, fit, fitError, substitutesFor, substitute, foodAllowed, recipeAllowed, suggest, SOURCE_APP };
 })();

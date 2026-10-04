@@ -278,7 +278,7 @@
       const cats = R.CATEGORIES.filter((c) => R.all(S).some((r) => R.category(r) === c.id));
       panel = '<div class="form-grid"><label>Rechercher une recette<input type="search" id="jr-q" autocomplete="off" value="' + esc(ui.jrQuery || '') + '" data-input="jrq" placeholder="poulet, overnight, smoothie…"></label>' +
         '<label>Repas<select data-change="pick-meal">' + opts(N.MEALS.map((m) => [m.id, m.label]), ui.meal) + '</select></label></div>' +
-        '<div class="chips" role="group" aria-label="Catégorie">' + [['', 'Toutes']].concat(cats.map((c) => [c.id, c.label])).map((c) => '<button type="button" class="chip" data-action="jr-cat" data-c="' + c[0] + '" aria-pressed="' + ((ui.jrCat || '') === c[0]) + '">' + esc(c[1]) + '</button>').join('') + '</div>' +
+        '<div class="chips" role="group" aria-label="Catégorie">' + [['', 'Toutes']].concat(Object.keys(S.favorites || {}).length ? [['fav', '★ Favoris']] : []).concat(cats.map((c) => [c.id, c.label])).map((c) => '<button type="button" class="chip" data-action="jr-cat" data-c="' + c[0] + '" aria-pressed="' + ((ui.jrCat || '') === c[0]) + '">' + esc(c[1]) + '</button>').join('') + '</div>' +
         '<div id="jr-list" class="stack" style="gap:0">' + journalRecipesHTML(iso) + '</div>' +
         '<p class="small muted">« Ajuster » calcule une portion qui colle à ce qu\'il te reste pour ce repas. Les macros sont recalculées à partir des ingrédients.</p>';
     } else if (ui.tab === 'libre') {
@@ -687,14 +687,14 @@
   /** Liste des recettes de l'onglet Recettes du journal (filtrée, 40 max). */
   function journalRecipesHTML(iso) {
     const q = U.norm(ui.jrQuery || '');
-    const list = R.all(S).filter((r) => (!ui.jrCat || R.category(r) === ui.jrCat) && (!q || U.norm(r.name).includes(q)))
-      .sort((a, b) => (a.meals.includes(ui.meal) ? 0 : 1) - (b.meals.includes(ui.meal) ? 0 : 1) || a.name.localeCompare(b.name));
+    const list = R.all(S).filter((r) => (!ui.jrCat || (ui.jrCat === 'fav' ? R.isFav(S, r.id) : R.category(r) === ui.jrCat)) && (!q || U.norm(r.name).includes(q)))
+      .sort((a, b) => (R.isFav(S, b.id) - R.isFav(S, a.id)) || (a.meals.includes(ui.meal) ? 0 : 1) - (b.meals.includes(ui.meal) ? 0 : 1) || a.name.localeCompare(b.name));
     if (!list.length) return '<p class="small muted">Aucune recette ne correspond.</p>';
     return list.slice(0, 40).map((r) => {
       const per = R.compute(S, r).per;
       const qid = 'jrq-' + r.id;
       return '<div class="jr-row"><div class="recipe-thumb small-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, r) + '</div>' +
-        '<div class="stack" style="gap:2px;min-width:0;flex:1"><strong>' + esc(r.name) + '</strong><span class="small muted">1 portion : ' + macroLine(per) + '</span></div>' +
+        '<div class="stack" style="gap:2px;min-width:0;flex:1"><div class="inline" style="gap:6px;flex-wrap:nowrap">' + '<button type="button" class="fav-btn" data-action="fav" data-id="' + esc(r.id) + '" aria-pressed="' + R.isFav(S, r.id) + '" aria-label="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '" title="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '">' + (R.isFav(S, r.id) ? '★' : '☆') + '</button>' + '<strong>' + esc(r.name) + '</strong></div><span class="small muted">1 portion : ' + macroLine(per) + '</span></div>' +
         '<div class="inline" style="gap:6px;justify-content:flex-end"><label class="sr-only" for="' + esc(qid) + '">Portions</label><select id="' + esc(qid) + '" style="width:auto;min-height:36px">' + opts([[0.5, '½'], [1, '1'], [1.5, '1 ½'], [2, '2']], 1) + '</select>' +
         '<button class="btn sm" data-action="jr-add" data-id="' + esc(r.id) + '">Ajouter</button><button class="btn sm ghost" data-action="jr-fit" data-id="' + esc(r.id) + '">Ajuster</button></div></div>';
     }).join('') + (list.length > 40 ? '<p class="small muted">' + (list.length - 40) + ' autres recettes : affine la recherche.</p>' : '');
@@ -769,7 +769,7 @@
     const c = R.compute(S, r);
     const allowed = R.recipeAllowed(S, r);
     return '<article class="recipe-card"><div class="recipe-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, r) + '</div><div class="stack" style="gap:4px">' +
-      '<strong>' + esc(r.name) + '</strong><span class="small muted">' + r.meals.map((m) => MEAL_LABEL[m]).join(', ') + ' · ' + ((r.prep || 0) + (r.cook || 0)) + ' min · ' + r.servings + ' portion' + (r.servings > 1 ? 's' : '') + '</span>' +
+      '<div class="between" style="align-items:flex-start"><strong>' + esc(r.name) + '</strong>' + '<button type="button" class="fav-btn" data-action="fav" data-id="' + esc(r.id) + '" aria-pressed="' + R.isFav(S, r.id) + '" aria-label="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '" title="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '">' + (R.isFav(S, r.id) ? '★' : '☆') + '</button>' + '</div><span class="small muted">' + r.meals.map((m) => MEAL_LABEL[m]).join(', ') + ' · ' + ((r.prep || 0) + (r.cook || 0)) + ' min · ' + r.servings + ' portion' + (r.servings > 1 ? 's' : '') + '</span>' +
       '<span class="small">' + macroLine(c.per) + ' / portion</span>' +
       (allowed.ok ? '' : '<span class="small" style="color:var(--warn)">Exclue : ' + esc(allowed.reason) + '</span>') +
       '<div class="inline" style="gap:6px"><button class="btn sm" data-action="r-open" data-id="' + esc(r.id) + '">Voir la recette</button><span class="badge">' + esc(r.source && r.source.collection ? r.source.collection + (r.source.ref ? ' · ' + r.source.ref.replace('page ', 'p. ') : '') : r.source && r.source.type === 'user' ? 'Ma recette' : r.source && r.source.type === 'external' ? 'Externe' : 'App') + '</span></div></div></article>';
@@ -788,7 +788,7 @@
         '<td class="num">' + esc(F.qtyLabel(l.food, l.ing.qty, l.ing.unit)) + (function () { const eq = R.cookEquivalent(S, l.ing); return eq ? '<br><span class="small teal">≈ ' + U.num(eq.grams) + ' g ' + esc(eq.state) + '</span>' : ''; })() + '</td><td class="num">' + U.num(l.v.kcal) + '</td><td class="num">' + U.num(l.v.p, 1) + '</td><td class="num">' + U.num(l.v.g, 1) + '</td><td class="num">' + U.num(l.v.l, 1) + '</td><td class="num">' + U.num(l.v.fib, 1) + '</td>' +
         '<td>' + (subs.length ? '<label class="sr-only" for="rs-' + idx + '">Remplacer</label><select id="rs-' + idx + '" data-change="r-sub" data-idx="' + idx + '" style="min-width:140px"><option value="">Remplacer…</option>' + subs.map((s) => '<option value="' + esc(s.id) + '">' + esc(F.displayName(s)) + '</option>').join('') + '</select>' : '') + '</td></tr>';
     }).join('');
-    return '<section class="card" aria-label="Recette"><div class="card-head"><h2>' + esc(r.name) + '</h2><button class="btn sm ghost" data-action="r-close">Fermer</button></div>' +
+    return '<section class="card" aria-label="Recette"><div class="card-head"><h2>' + esc(r.name) + '</h2><div class="inline" style="gap:6px">' + '<button type="button" class="fav-btn" data-action="fav" data-id="' + esc(r.id) + '" aria-pressed="' + R.isFav(S, r.id) + '" aria-label="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '" title="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '">' + (R.isFav(S, r.id) ? '★' : '☆') + '</button>' + '<button class="btn sm ghost" data-action="r-close">Fermer</button></div></div>' +
       '<div class="recipe-photo" id="recipe-photo" data-id="' + esc(r.id) + '">' + FD.recipeArt.svg(S, r) + '</div>' +
       '<p class="small muted" id="recipe-art-note">Illustration générée à partir des ingrédients. Ajoute ta photo pour la remplacer — en lot : nomme le fichier <code>' + esc(r.id) + '.jpg</code> et utilise « Importer des photos ».</p>' +
       '<div class="inline"><label class="btn sm" style="flex-direction:row">' + 'Ajouter / changer la photo<input type="file" accept="image/*" data-change="r-photo" data-id="' + esc(r.id) + '" class="sr-only"></label><button class="btn sm ghost" data-action="r-photo-del" data-id="' + esc(r.id) + '">Retirer la photo</button><span class="small muted">Ta photo reste sur cet appareil.</span></div>' +
@@ -855,7 +855,7 @@
         '<label style="flex:0 1 200px">Repas<select data-change="r-filter">' + opts([['', 'Tous']].concat(N.MEALS.map((m) => [m.id, m.label])), ui.rFilterMeal || '') + '</select></label>' +
         '<label style="flex:0 1 220px">Collection<select data-change="r-collection">' + opts([['', 'Toutes'], ['app', 'Recettes de l\'app'], ['user', 'Mes recettes']].concat(Object.keys(cols).map((c) => [c, c + ' (' + cols[c] + ')'])), ui.rCollection || '') + '</select></label></div>' +
         (ui.rCollection && cols[ui.rCollection] ? '<div><button class="btn sm ghost danger" data-action="r-col-remove" data-c="' + esc(ui.rCollection) + '">Retirer la collection « ' + esc(ui.rCollection) + ' »</button></div>' : '') +
-        '<div class="chips" role="group" aria-label="Catégorie">' + [['', 'Toutes']].concat(R.CATEGORIES.map((c) => [c.id, c.label])).map((c) => { const n = c[0] ? R.all(S).filter((r) => R.category(r) === c[0]).length : R.all(S).length; return n ? '<button type="button" class="chip" data-action="r-cat" data-c="' + c[0] + '" aria-pressed="' + ((ui.rCat || '') === c[0]) + '">' + esc(c[1]) + ' <span class="muted">' + n + '</span></button>' : ''; }).join('') + '</div>' +
+        '<div class="chips" role="group" aria-label="Catégorie">' + [['', 'Toutes'], ['fav', '★ Favoris']].concat(R.CATEGORIES.map((c) => [c.id, c.label])).map((c) => { const n = c[0] === 'fav' ? R.all(S).filter((r) => R.isFav(S, r.id)).length : c[0] ? R.all(S).filter((r) => R.category(r) === c[0]).length : R.all(S).length; return n ? '<button type="button" class="chip" data-action="r-cat" data-c="' + c[0] + '" aria-pressed="' + ((ui.rCat || '') === c[0]) + '">' + esc(c[1]) + ' <span class="muted">' + n + '</span></button>' : ''; }).join('') + '</div>' +
         '<div id="recipe-list">' + recipeListHTML(list) + '</div></section>' +
       legal + '</div>';
   }
@@ -898,7 +898,7 @@
         '<label>Budget<select name="budget">' + opts([['eco', 'Économique'], ['moyen', 'Moyen'], ['premium', 'Premium']], st.budget) + '</select></label>' +
         '<label>Petit-déjeuner<select name="fixPetitdej">' + opts(recOpts('petitdej'), st.fixed.petitdej || '') + '</select></label>' +
         '<label>Dîner<select name="fixDiner">' + opts(recOpts('diner'), st.fixed.diner || '') + '</select></label>' +
-        '<label>Recettes<select name="pool">' + opts([['all', 'Toutes']].concat(Object.keys(R.collections(S)).reduce((a, c) => a.concat([['prefer:' + c, 'Privilégier ' + c], ['only:' + c, 'Uniquement ' + c]]), [])).concat([['app', 'Recettes de l\'app'], ['user', 'Mes recettes']]), st.pool || 'all') + '</select></label>' +
+        '<label>Recettes<select name="pool">' + opts([['all', 'Toutes'], ['fav', 'Privilégier mes favoris']].concat(Object.keys(R.collections(S)).reduce((a, c) => a.concat([['prefer:' + c, 'Privilégier ' + c], ['only:' + c, 'Uniquement ' + c]]), [])).concat([['app', 'Recettes de l\'app'], ['user', 'Mes recettes']]), st.pool || 'all') + '</select></label>' +
         '<label>Batch cooking<select name="batch">' + opts([[0, 'Non : repas variés chaque jour'], [2, 'Déjeuner identique 2 jours'], [3, 'Déjeuner identique 3 jours'], [4, 'Déjeuner identique 4 jours']], st.batch === true ? 2 : (parseInt(st.batch, 10) || 0)) + '</select></label>' +
       '</div><p class="small muted">Chaque journée respecte ton plafond de ' + U.num(S.profile.kcalMax) + ' kcal et vise la cible de sa séance ; le dernier repas est recalé sur ce qu\'il reste. Exclusions, allergies et régime du profil sont respectés. Un budget serré écarte d\'abord les ingrédients premium, jamais les protéines.</p>' +
       '<div class="inline"><button class="btn primary" type="submit">' + (plan ? 'Régénérer le plan' : 'Générer le plan') + '</button>' + (plan ? '<button type="button" class="btn ghost danger" data-action="plan-clear">Supprimer le plan</button>' : '') + '</div></form>' +
@@ -1141,6 +1141,7 @@
       case 'r-open': ui.recipe = el.dataset.id; ui.rIngsFor = null; ui.editor = null; if (el.dataset.go) location.hash = '#/' + el.dataset.go; else { render(); window.scrollTo({ top: 0 }); } break;
       case 'r-close': ui.recipe = null; ui.rIngsFor = null; render(); break;
       case 'r-cat': ui.rCat = el.dataset.c; render(); break;
+      case 'fav': { const on = R.toggleFav(S, el.dataset.id); const r = R.byId(S, el.dataset.id); commit((on ? '★ Ajouté aux favoris' : 'Retiré des favoris') + (r ? ' : ' + r.name : '') + '.'); break; }
       case 'r-photo-del': FD.photos.removeRecipePhoto(el.dataset.id).then(() => { toast('Photo retirée : illustration rétablie.'); render(); }); break;
       case 'r-col-remove': {
         const c = el.dataset.c;
@@ -1600,7 +1601,7 @@
 
   function filteredRecipes() {
     return R.all(S).filter((r) => {
-      if (ui.rCat && R.category(r) !== ui.rCat) return false;
+      if (ui.rCat === 'fav') { if (!R.isFav(S, r.id)) return false; } else if (ui.rCat && R.category(r) !== ui.rCat) return false;
       if (ui.rFilterMeal && !r.meals.includes(ui.rFilterMeal)) return false;
       if (ui.rQuery && !U.norm(r.name).includes(U.norm(ui.rQuery))) return false;
       const src = r.source || {};
