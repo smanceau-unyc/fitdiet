@@ -837,7 +837,7 @@
         '<label>Petit-déjeuner<select name="fixPetitdej">' + opts(recOpts('petitdej'), st.fixed.petitdej || '') + '</select></label>' +
         '<label>Dîner<select name="fixDiner">' + opts(recOpts('diner'), st.fixed.diner || '') + '</select></label>' +
         '<label>Recettes<select name="pool">' + opts([['all', 'Toutes']].concat(Object.keys(R.collections(S)).reduce((a, c) => a.concat([['prefer:' + c, 'Privilégier ' + c], ['only:' + c, 'Uniquement ' + c]]), [])).concat([['app', 'Recettes de l\'app'], ['user', 'Mes recettes']]), st.pool || 'all') + '</select></label>' +
-        '<label class="check"><input type="checkbox" name="batch"' + (st.batch !== false ? ' checked' : '') + '>Batch cooking : un prep\'meal sert plusieurs jours</label>' +
+        '<label>Batch cooking<select name="batch">' + opts([[0, 'Non : repas variés chaque jour'], [2, 'Déjeuner identique 2 jours'], [3, 'Déjeuner identique 3 jours'], [4, 'Déjeuner identique 4 jours']], st.batch === true ? 2 : (parseInt(st.batch, 10) || 0)) + '</select></label>' +
       '</div><p class="small muted">Chaque journée respecte ton plafond de ' + U.num(S.profile.kcalMax) + ' kcal et vise la cible de sa séance ; le dernier repas est recalé sur ce qu\'il reste. Exclusions, allergies et régime du profil sont respectés. Un budget serré écarte d\'abord les ingrédients premium, jamais les protéines.</p>' +
       '<div class="inline"><button class="btn primary" type="submit">' + (plan ? 'Régénérer le plan' : 'Générer le plan') + '</button>' + (plan ? '<button type="button" class="btn ghost danger" data-action="plan-clear">Supprimer le plan</button>' : '') + '</div></form>' +
       (plan ? (function () { const pc = FD.prices.planCost(S, plan); const wb = FD.prices.weeklyBudget(S); const b = wb ? wb * plan.days.length / 7 : null;
@@ -1481,7 +1481,7 @@
       case 'plan': {
         const settings = {
           days: parseInt(v.days, 10) || 7, mealsPerDay: parseInt(v.mealsPerDay, 10) || 4, budget: v.budget || 'moyen',
-          fixed: { petitdej: v.fixPetitdej || '', diner: v.fixDiner || '' }, seed: Math.floor(Math.random() * 100000), pool: v.pool || 'all', batch: !!v.batch
+          fixed: { petitdej: v.fixPetitdej || '', diner: v.fixDiner || '' }, seed: Math.floor(Math.random() * 100000), pool: v.pool || 'all', batch: parseInt(v.batch, 10) || 0
         };
         S.planSettings = settings;
         S.plan = FD.planner.generate(S, settings, v.start || today());

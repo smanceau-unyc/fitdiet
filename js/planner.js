@@ -22,7 +22,7 @@ FD.planner = (function () {
   };
 
   function defaultSettings(state) {
-    return { days: 7, mealsPerDay: Math.min(5, Math.max(3, state.profile.mealsPerDay || 4)), budget: 'moyen', fixed: { petitdej: 'r-skyr-bowl', diner: '' }, seed: 1, pool: 'all', batch: true };
+    return { days: 7, mealsPerDay: Math.min(5, Math.max(3, state.profile.mealsPerDay || 4)), budget: 'moyen', fixed: { petitdej: 'r-skyr-bowl', diner: '' }, seed: 1, pool: 'all', batch: 0 };
   }
 
   function rng(seed) { let s = seed * 7919 % 233280 || 1; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
@@ -52,7 +52,8 @@ FD.planner = (function () {
     const fit = FD.recipes.fit(state, r, slot.target);
     let score = FD.recipes.fitError(fit.totals, slot.target);
     const uses = ctx.uses[r.id] || 0;
-    score += uses * 0.25;
+    score += uses * 0.3;
+    if (ctx.yesterday && ctx.yesterday.includes(r.id)) score += 0.6; // pas le même plat que la veille
     if (ctx.today.includes(r.id)) score += 1;
     const reuse = ingredientKeys(fit.ingredients).filter((id) => ctx.basket[id]).length;
     score -= Math.min(0.3, reuse * 0.08);
@@ -106,11 +107,13 @@ FD.planner = (function () {
     const wb = FD.prices ? FD.prices.weeklyBudget(state) : null;
     const ctx = { uses: {}, basket: {}, budget: s.budget, rand, today: [], mealBudget: wb ? wb / 7 / s.mealsPerDay : null, prefer: s.pool && s.pool.startsWith('prefer:') ? s.pool.slice(7) : null };
     const recipes = poolOf(state, s.pool);
-    const batch = {}; // repas → { recipe, left } : un prep'meal cuisiné une fois sert plusieurs jours
+    const batch = {}; // déjeuner → { recipe, left } : un prep'meal cuisiné une fois sert plusieurs jours
+    const batchDays = s.batch === true ? 2 : Math.max(0, parseInt(s.batch, 10) || 0); // nombre de jours couverts (0 = désactivé)
     const days = [];
     for (let d = 0; d < s.days; d++) {
       const iso = U.addDays(startIso, d);
       const st = slotTargets(state, iso, s.mealsPerDay);
+      ctx.yesterday = days.length ? days[days.length - 1].meals.map((m) => m.recipeId) : [];
       ctx.today = [];
       const lastIdx = st.slots.length - 1;
       const eatenSoFar = () => meals.reduce((a, m) => FD.nutrition.add(a, m.totals), FD.nutrition.zero());
@@ -127,7 +130,7 @@ FD.planner = (function () {
           if (r) choice = { recipe: r, fit: FD.recipes.fit(state, r, target) };
         }
         const key = slot.meal + (slot.label || '');
-        if (!choice && s.batch && batch[key] && batch[key].left > 0 && !ctx.today.includes(batch[key].recipe.id)) {
+        if (!choice && batchDays > 1 && slot.meal === 'dejeuner' && batch[key] && batch[key].left > 0 && !ctx.today.includes(batch[key].recipe.id)) {
           batch[key].left--;
           choice = { recipe: batch[key].recipe, fit: FD.recipes.fit(state, batch[key].recipe, target), batched: true };
         }
@@ -140,7 +143,8 @@ FD.planner = (function () {
           }
           cands.sort((a, b) => a.score - b.score);
           choice = cands[0] || null;
-          if (choice && s.batch && FD.recipes.category(choice.recipe) === 'prepmeal' && choice.recipe.servings >= 3) batch[key] = { recipe: choice.recipe, left: choice.recipe.servings - 1 };
+          // batch cooking : uniquement au déjeuner, le dîner reste varié
+          if (choice && batchDays > 1 && slot.meal === 'dejeuner' && FD.recipes.category(choice.recipe) === 'prepmeal' && choice.recipe.servings >= 2) batch[key] = { recipe: choice.recipe, left: Math.min(batchDays, choice.recipe.servings) - 1 };
         }
         if (!choice) { meals.push({ meal: slot.meal, label: slot.label, tag: slot.tag, target, recipeId: null, ingredients: [], totals: FD.nutrition.zero() }); return; }
         ctx.uses[choice.recipe.id] = (ctx.uses[choice.recipe.id] || 0) + 1;
