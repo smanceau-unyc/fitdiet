@@ -17,7 +17,7 @@
   // État d'interface (non persisté)
   const ui = {
     route: 'tableau', jDate: today(), query: '', results: [], pick: null, variantId: null, qty: '100', unit: 'g', meal: defaultMeal(),
-    tab: 'base', off: { query: '', loading: false, results: [], error: null }, subEntry: null, trackDate: today(),
+    tab: 'recettes', off: { query: '', loading: false, results: [], error: null }, subEntry: null, trackDate: today(),
     sug: [], recipe: null, rIngs: null, rIngsFor: null, rServings: 1, rMeal: null, rQuery: '', rFilterMeal: '', editor: null, edQuery: '', edResults: [],
     rCollection: '', rCat: '', recipePhotoUrls: [],
     ciqLabel: 'CIQUAL', ciqManual: null, ciqQuery: '', scan: { msg: null, error: null, loading: false }, photoView: 'face', photoUrls: []
@@ -229,7 +229,7 @@
         (entries.length ? entries.map(entryHTML).join('') : '<p class="small muted" style="padding:6px 0">Rien pour l\'instant.</p>') + '</div>';
     }).join('');
 
-    const tabs = [['base', 'Base d\'aliments'], ['scan', 'Scanner'], ['off', 'Open Food Facts'], ['libre', 'Saisie libre'], ['types', 'Repas types']];
+    const tabs = [['recettes', 'Recettes'], ['base', 'Base d\'aliments'], ['scan', 'Scanner'], ['off', 'Open Food Facts'], ['libre', 'Saisie libre'], ['types', 'Repas types']];
     let panel = '';
     if (ui.tab === 'base') {
       panel = '<label>Rechercher un aliment<input type="search" id="food-q" autocomplete="off" value="' + esc(ui.query) + '" data-input="q" placeholder="riz, poulet, skyr…"></label><div id="food-results">' + resultsHTML() + '</div>' + pickHTML();
@@ -249,6 +249,13 @@
         (ui.off.loading ? '<p>Recherche en cours…</p>' : '') + (ui.off.error ? '<div class="alert warn">' + esc(ui.off.error) + '</div>' : '') +
         (ui.off.results.length ? '<div class="results">' + ui.off.results.map((p, i) => '<button type="button" data-action="off-pick" data-idx="' + i + '"><span>' + esc(p.base) + (p.brand ? ' <span class="muted">(' + esc(p.brand) + ')</span>' : '') + '</span><span class="small muted">' + U.num(p.kcal) + ' kcal · P ' + U.num(p.p, 1) + ' g /100 g</span></button>').join('') + '</div>' : '') +
         pickHTML();
+    } else if (ui.tab === 'recettes') {
+      const cats = R.CATEGORIES.filter((c) => R.all(S).some((r) => R.category(r) === c.id));
+      panel = '<div class="form-grid"><label>Rechercher une recette<input type="search" id="jr-q" autocomplete="off" value="' + esc(ui.jrQuery || '') + '" data-input="jrq" placeholder="poulet, overnight, smoothie…"></label>' +
+        '<label>Repas<select data-change="pick-meal">' + opts(N.MEALS.map((m) => [m.id, m.label]), ui.meal) + '</select></label></div>' +
+        '<div class="chips" role="group" aria-label="Catégorie">' + [['', 'Toutes']].concat(cats.map((c) => [c.id, c.label])).map((c) => '<button type="button" class="chip" data-action="jr-cat" data-c="' + c[0] + '" aria-pressed="' + ((ui.jrCat || '') === c[0]) + '">' + esc(c[1]) + '</button>').join('') + '</div>' +
+        '<div id="jr-list" class="stack" style="gap:0">' + journalRecipesHTML(iso) + '</div>' +
+        '<p class="small muted">« Ajuster » calcule une portion qui colle à ce qu\'il te reste pour ce repas. Les macros sont recalculées à partir des ingrédients.</p>';
     } else if (ui.tab === 'libre') {
       panel = '<form class="stack" data-form="free"><p class="small muted">Pour un restaurant, un dessert, un verre : estime large, c\'est intégré à ta journée et à ta semaine, sans jugement.</p>' +
         '<div class="form-grid"><label>Nom<input type="text" name="name" required placeholder="Pizza, verre de vin…"></label>' +
@@ -652,6 +659,35 @@
     return { meal, target: mt[meal] };
   }
 
+  /** Liste des recettes de l'onglet Recettes du journal (filtrée, 40 max). */
+  function journalRecipesHTML(iso) {
+    const q = U.norm(ui.jrQuery || '');
+    const list = R.all(S).filter((r) => (!ui.jrCat || R.category(r) === ui.jrCat) && (!q || U.norm(r.name).includes(q)))
+      .sort((a, b) => (a.meals.includes(ui.meal) ? 0 : 1) - (b.meals.includes(ui.meal) ? 0 : 1) || a.name.localeCompare(b.name));
+    if (!list.length) return '<p class="small muted">Aucune recette ne correspond.</p>';
+    return list.slice(0, 40).map((r) => {
+      const per = R.compute(S, r).per;
+      const qid = 'jrq-' + r.id;
+      return '<div class="jr-row"><div class="recipe-thumb small-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, r) + '</div>' +
+        '<div class="stack" style="gap:2px;min-width:0;flex:1"><strong>' + esc(r.name) + '</strong><span class="small muted">1 portion : ' + macroLine(per) + '</span></div>' +
+        '<div class="inline" style="gap:6px;justify-content:flex-end"><label class="sr-only" for="' + esc(qid) + '">Portions</label><select id="' + esc(qid) + '" style="width:auto;min-height:36px">' + opts([[0.5, '½'], [1, '1'], [1.5, '1 ½'], [2, '2']], 1) + '</select>' +
+        '<button class="btn sm" data-action="jr-add" data-id="' + esc(r.id) + '">Ajouter</button><button class="btn sm ghost" data-action="jr-fit" data-id="' + esc(r.id) + '">Ajuster</button></div></div>';
+    }).join('') + (list.length > 40 ? '<p class="small muted">' + (list.length - 40) + ' autres recettes : affine la recherche.</p>' : '');
+  }
+
+  /** Cible d'un repas pour une recette « ajustée » : sa part de la journée, sans dépasser ce qu'il reste. */
+  function mealFitTarget(iso, meal) {
+    const tg = C.dayTarget(S, iso);
+    const tot = T.dayTotals(S, iso);
+    const mt = N.mealTargets(tg, S.profile.trainingTime, tg.type.cat !== 'repos')[meal];
+    const rem = { kcal: tg.kcal - tot.kcal, p: tg.p - tot.p };
+    const d = S.days[iso] || { foods: [] };
+    const left = ['petitdej', 'dejeuner', 'collation', 'diner'].filter((m) => m !== meal && !(d.foods || []).some((e) => e.meal === m));
+    const lastOne = !left.some((m) => ['dejeuner', 'diner'].includes(m)) && meal !== 'petitdej' && meal !== 'collation';
+    if (lastOne) return { kcal: Math.max(150, rem.kcal), p: Math.max(10, rem.p) };
+    return { kcal: Math.max(120, Math.min(mt.kcal * 1.15, rem.kcal)), p: Math.max(8, Math.min(mt.p * 1.3, rem.p)) };
+  }
+
   /** « Compléter ma journée » : combinaisons de recettes pour les repas restants. */
   function completeDayHTML(iso) {
     ui.cdShown = false;
@@ -1043,6 +1079,22 @@
         commit(o.meals.map((m) => m.recipe.name).join(' + ') + ' ajoutés au journal.');
         break;
       }
+      case 'jr-cat': ui.jrCat = el.dataset.c; render(); break;
+      case 'jr-add':
+      case 'jr-fit': {
+        const r = R.byId(S, el.dataset.id);
+        if (!r) break;
+        let ings;
+        if (a === 'jr-fit') ings = R.fit(S, r, mealFitTarget(ui.jDate, ui.meal)).ingredients;
+        else {
+          const sel = document.getElementById('jrq-' + r.id);
+          const k = sel ? parseFloat(sel.value) || 1 : 1;
+          ings = R.perServing(r).map((i) => Object.assign({}, i, { qty: R.roundQty(i.qty * k, i.unit, F.byId(S, i.foodId)) }));
+        }
+        logIngredients(ui.jDate, ui.meal, ings);
+        commit('« ' + r.name + ' » ajouté au ' + N.MEALS.find((m) => m.id === ui.meal).label.toLowerCase() + '.');
+        break;
+      }
       case 'sug-add': {
         const x = ui.sug[+el.dataset.idx];
         if (x) { logIngredients(x.iso, x.meal, x.fit.ingredients); commit(x.recipe.name + ' ajouté au journal.'); }
@@ -1346,6 +1398,11 @@
       ui.query = el.value;
       const box = document.getElementById('food-results');
       if (box) box.innerHTML = resultsHTML();
+    }
+    if (el.dataset.input === 'jrq') {
+      ui.jrQuery = el.value;
+      const box = document.getElementById('jr-list');
+      if (box) { box.innerHTML = journalRecipesHTML(ui.jDate); fillRecipePhotos(); }
     }
     if (el.dataset.input === 'rq') {
       ui.rQuery = el.value;

@@ -278,3 +278,7 @@ footer.legal { font-size: 13px; color: var(--muted); border-top: 1px solid var(-
 
 .cd-meal { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; }
 .recipe-thumb.small-thumb { width: 72px; height: 54px; }
+
+.jr-row { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.jr-row:last-child { border-bottom: 0; }
+@media (max-width: 640px) { .jr-row > .inline { width: 100%; justify-content: flex-start; } }
