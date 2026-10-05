@@ -364,7 +364,7 @@
         pickHTML();
     } else if (ui.tab === 'recettes') {
       const cats = R.CATEGORIES.filter((c) => R.all(S).some((r) => R.category(r) === c.id));
-      panel = '<div class="form-grid"><label>Rechercher une recette<input type="search" id="jr-q" autocomplete="off" value="' + esc(ui.jrQuery || '') + '" data-input="jrq" placeholder="poulet, overnight, smoothie…"></label>' +
+      panel = '<div class="form-grid"><label>Rechercher une recette<input type="search" id="jr-q" autocomplete="off" value="' + esc(ui.jrQuery || '') + '" data-input="jrq" placeholder="nom ou ingrédient : poulet, fromage, pâtes…"></label>' +
         '<label>Repas<select data-change="pick-meal">' + opts(N.MEALS.map((m) => [m.id, m.label]), ui.meal) + '</select></label></div>' +
         '<div class="chips" role="group" aria-label="Catégorie">' + [['', 'Toutes']].concat(Object.keys(S.favorites || {}).length ? [['fav', '★ Favoris']] : []).concat(cats.map((c) => [c.id, c.label])).map((c) => '<button type="button" class="chip" data-action="jr-cat" data-c="' + c[0] + '" aria-pressed="' + ((ui.jrCat || '') === c[0]) + '">' + esc(c[1]) + '</button>').join('') + '</div>' +
         '<div id="jr-list" class="stack" style="gap:0">' + journalRecipesHTML(iso) + '</div>' +
@@ -776,14 +776,14 @@
   /** Liste des recettes de l'onglet Recettes du journal (filtrée, 40 max). */
   function journalRecipesHTML(iso) {
     const q = U.norm(ui.jrQuery || '');
-    const list = R.all(S).filter((r) => (!ui.jrCat || (ui.jrCat === 'fav' ? R.isFav(S, r.id) : R.category(r) === ui.jrCat)) && (!q || U.norm(r.name).includes(q)))
+    const list = R.all(S).filter((r) => (!ui.jrCat || (ui.jrCat === 'fav' ? R.isFav(S, r.id) : R.category(r) === ui.jrCat)) && (!q || R.matchQuery(S, r, ui.jrQuery)))
       .sort((a, b) => (R.isFav(S, b.id) - R.isFav(S, a.id)) || (a.meals.includes(ui.meal) ? 0 : 1) - (b.meals.includes(ui.meal) ? 0 : 1) || a.name.localeCompare(b.name));
     if (!list.length) return '<p class="small muted">Aucune recette ne correspond.</p>';
     return list.slice(0, 40).map((r) => {
       const per = R.compute(S, r).per;
       const qid = 'jrq-' + r.id;
       return '<div class="jr-row"><div class="recipe-thumb small-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, r) + '</div>' +
-        '<div class="stack" style="gap:2px;min-width:0;flex:1"><div class="inline" style="gap:6px;flex-wrap:nowrap">' + '<button type="button" class="fav-btn" data-action="fav" data-id="' + esc(r.id) + '" aria-pressed="' + R.isFav(S, r.id) + '" aria-label="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '" title="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '">' + (R.isFav(S, r.id) ? '★' : '☆') + '</button>' + '<strong>' + esc(r.name) + '</strong></div><span class="small muted">1 portion : ' + macroLine(per) + '</span></div>' +
+        '<div class="stack" style="gap:2px;min-width:0;flex:1"><div class="inline" style="gap:6px;flex-wrap:nowrap">' + '<button type="button" class="fav-btn" data-action="fav" data-id="' + esc(r.id) + '" aria-pressed="' + R.isFav(S, r.id) + '" aria-label="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '" title="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '">' + (R.isFav(S, r.id) ? '★' : '☆') + '</button>' + '<strong>' + esc(r.name) + '</strong></div><span class="small muted">1 portion : ' + macroLine(per) + '</span>' + (function () { const m = ui.jrQuery ? R.matchQuery(S, r, ui.jrQuery) : null; return m && m.viaIngredients.length ? '<span class="small teal">Contient : ' + esc(m.viaIngredients.slice(0, 3).join(', ').toLowerCase()) + '</span>' : ''; })() + '</div>' +
         '<div class="inline" style="gap:6px;justify-content:flex-end"><label class="sr-only" for="' + esc(qid) + '">Portions</label><select id="' + esc(qid) + '" style="width:auto;min-height:36px">' + opts([[0.5, '½'], [1, '1'], [1.5, '1 ½'], [2, '2']], 1) + '</select>' +
         '<button class="btn sm" data-action="jr-add" data-id="' + esc(r.id) + '">Ajouter</button><button class="btn sm ghost" data-action="jr-fit" data-id="' + esc(r.id) + '">Ajuster</button></div></div>';
     }).join('') + (list.length > 40 ? '<p class="small muted">' + (list.length - 40) + ' autres recettes : affine la recherche.</p>' : '');
@@ -860,6 +860,7 @@
     return '<article class="recipe-card"><div class="recipe-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, r) + '</div><div class="stack" style="gap:4px">' +
       '<div class="between" style="align-items:flex-start"><strong>' + esc(r.name) + '</strong>' + '<button type="button" class="fav-btn" data-action="fav" data-id="' + esc(r.id) + '" aria-pressed="' + R.isFav(S, r.id) + '" aria-label="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '" title="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '">' + (R.isFav(S, r.id) ? '★' : '☆') + '</button>' + '</div><span class="small muted">' + r.meals.map((m) => MEAL_LABEL[m]).join(', ') + ' · ' + ((r.prep || 0) + (r.cook || 0)) + ' min · ' + r.servings + ' portion' + (r.servings > 1 ? 's' : '') + '</span>' +
       '<span class="small">' + macroLine(c.per) + ' / portion</span>' +
+      (function () { const m = ui.rQuery ? R.matchQuery(S, r, ui.rQuery) : null; return m && m.viaIngredients.length ? '<span class="small teal">Contient : ' + esc(m.viaIngredients.slice(0, 3).join(', ').toLowerCase()) + '</span>' : ''; })() +
       (allowed.ok ? '' : '<span class="small" style="color:var(--warn)">Exclue : ' + esc(allowed.reason) + '</span>') +
       '<div class="inline" style="gap:6px"><button class="btn sm" data-action="r-open" data-id="' + esc(r.id) + '">Voir la recette</button><span class="badge">' + esc(r.source && r.source.collection ? r.source.collection + (r.source.ref ? ' · ' + r.source.ref.replace('page ', 'p. ') : '') : r.source && r.source.type === 'user' ? 'Ma recette' : r.source && r.source.type === 'external' ? 'Externe' : 'App') + '</span></div></div></article>';
   }
@@ -940,7 +941,7 @@
       '<div class="page-head"><div><h1>Recettes</h1><p class="sub">' + R.all(S).length + ' recettes · macros calculées à partir des ingrédients, jamais saisies à la main.</p></div><div class="inline"><label class="btn" style="flex-direction:row">Importer des recettes<input type="file" accept="application/json,.json" data-change="r-import" class="sr-only"></label><label class="btn" style="flex-direction:row">Importer des photos<input type="file" accept="image/*" multiple data-change="r-photos-bulk" class="sr-only"></label><button class="btn primary" data-action="r-new">Nouvelle recette</button></div></div>' +
       (ui.editor ? editorHTML() : '') + (open && !ui.editor ? recipeDetail(open) : '') +
       (!ui.editor && !open ? suggestionsHTML(today()) : '') +
-      '<section class="card"><div class="inline"><label style="flex:1 1 220px">Rechercher<input type="search" value="' + esc(ui.rQuery || '') + '" data-input="rq" placeholder="poulet, pâtes…"></label>' +
+      '<section class="card"><div class="inline"><label style="flex:1 1 220px">Rechercher<input type="search" value="' + esc(ui.rQuery || '') + '" data-input="rq" placeholder="nom ou ingrédient : poulet, fromage, pâtes…"></label>' +
         '<label style="flex:0 1 200px">Repas<select data-change="r-filter">' + opts([['', 'Tous']].concat(N.MEALS.map((m) => [m.id, m.label])), ui.rFilterMeal || '') + '</select></label>' +
         '<label style="flex:0 1 220px">Collection<select data-change="r-collection">' + opts([['', 'Toutes'], ['app', 'Recettes de l\'app'], ['user', 'Mes recettes']].concat(Object.keys(cols).map((c) => [c, c + ' (' + cols[c] + ')'])), ui.rCollection || '') + '</select></label></div>' +
         (ui.rCollection && cols[ui.rCollection] ? '<div><button class="btn sm ghost danger" data-action="r-col-remove" data-c="' + esc(ui.rCollection) + '">Retirer la collection « ' + esc(ui.rCollection) + ' »</button></div>' : '') +
@@ -1711,7 +1712,7 @@
     return R.all(S).filter((r) => {
       if (ui.rCat === 'fav') { if (!R.isFav(S, r.id)) return false; } else if (ui.rCat && R.category(r) !== ui.rCat) return false;
       if (ui.rFilterMeal && !r.meals.includes(ui.rFilterMeal)) return false;
-      if (ui.rQuery && !U.norm(r.name).includes(U.norm(ui.rQuery))) return false;
+      if (ui.rQuery && !R.matchQuery(S, r, ui.rQuery)) return false;
       const src = r.source || {};
       if (ui.rCollection === 'app' && src.type && src.type !== 'app') return false;
       if (ui.rCollection === 'user' && (src.type !== 'user')) return false;

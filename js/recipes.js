@@ -267,6 +267,55 @@ FD.recipes = (function () {
     return c;
   }
 
+  /* ---------------- Recherche par nom ou par ingrédient ---------------- */
+  // Mots génériques → mots-clés d'ingrédients
+  const SYNONYMS = {
+    fromage: ['fromage', 'emmental', 'parmesan', 'feta', 'mozzarella', 'cottage', 'cream cheese', 'comte', 'chevre', 'ricotta'],
+    viande: ['poulet', 'dinde', 'boeuf', 'steak', 'veau', 'porc', 'jambon', 'chorizo', 'viande'],
+    volaille: ['poulet', 'dinde'], boeuf: ['boeuf', 'steak', 'viande hachee'],
+    poisson: ['saumon', 'cabillaud', 'thon', 'poisson', 'colin', 'truite'],
+    pate: ['pate'], pates: ['pate'], laitage: ['skyr', 'fromage blanc', 'yaourt', 'lait', 'cottage'],
+    chocolat: ['chocolat', 'cacao'], fruit: ['@fruits'], legume: ['@legumes'], feculent: ['@feculents'],
+    oeuf: ['oeuf'], oeufs: ['oeuf']
+  };
+  const nz = (t) => U.norm(String(t || '').replace(/œ/g, 'oe').replace(/Œ/g, 'Oe'));
+  const sing = (w) => (w.length > 3 ? w.replace(/(s|x)$/, '') : w);
+  const ingIndex = new Map();
+
+  /** Texte recherchable des ingrédients d'une recette (noms de base, Ciqual, rayon). */
+  function ingredientText(state, r) {
+    const sig = r.id + '|' + r.ingredients.map((i) => i.foodId).join(',');
+    if (ingIndex.has(sig)) return ingIndex.get(sig);
+    const parts = r.ingredients.map((i) => {
+      const f = FD.foods.byId(state, i.foodId);
+      // nom de l'app pour les aliments de base (plus propre que l'intitulé Ciqual), intitulé complet sinon
+      return f ? { name: f.base, hay: ' ' + nz([f.base, f.brand].filter(Boolean).join(' ')).replace(/[^a-z0-9@ ]+/g, ' ') + ' @' + f.cat + ' ' } : null;
+    }).filter(Boolean);
+    ingIndex.set(sig, parts);
+    return parts;
+  }
+
+  /**
+   * Une recette correspond si CHAQUE mot cherché se trouve dans son nom ou dans un de ses ingrédients.
+   * Renvoie null si pas de correspondance, sinon { viaIngredients: [noms d'ingrédients trouvés] }.
+   */
+  function matchQuery(state, r, query) {
+    const terms = nz(query).split(/[\s,]+/).filter((t) => t.length >= 2).map(sing);
+    if (!terms.length) return { viaIngredients: [] };
+    const name = ' ' + nz(r.name).replace(/[^a-z0-9 ]+/g, ' ') + ' ';
+    const has = (hay, k) => k.startsWith('@') ? hay.includes(' ' + k + ' ') : hay.includes(' ' + k); // début de mot
+    const ings = ingredientText(state, r);
+    const found = [];
+    for (const t of terms) {
+      const keys = SYNONYMS[t] || SYNONYMS[t + 's'] || [t];
+      if (keys.some((k) => !k.startsWith('@') && has(name, k))) continue;
+      const hits = ings.filter((i) => keys.some((k) => has(i.hay, k)));
+      if (!hits.length) return null;
+      hits.forEach((h) => { if (!found.includes(h.name)) found.push(h.name); });
+    }
+    return { viaIngredients: found };
+  }
+
   /** Recettes favorites. */
   function isFav(state, id) { return !!(state.favorites && state.favorites[id]); }
   function toggleFav(state, id) {
@@ -275,5 +324,5 @@ FD.recipes = (function () {
     return !!state.favorites[id];
   }
 
-  return { isFav, toggleFav, CATEGORIES, category, cookEquivalent, importCollection, collections, all, byId, sourceLabel, compute, roundQty, perServing, fit, fitError, substitutesFor, substitute, foodAllowed, recipeAllowed, suggest, SOURCE_APP };
+  return { matchQuery, isFav, toggleFav, CATEGORIES, category, cookEquivalent, importCollection, collections, all, byId, sourceLabel, compute, roundQty, perServing, fit, fitError, substitutesFor, substitute, foodAllowed, recipeAllowed, suggest, SOURCE_APP };
 })();

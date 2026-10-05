@@ -1,4 +1,4 @@
-# FitDiet Coach — version 3.12
+# FitDiet Coach — version 3.13
 
 Application de suivi nutritionnel sportif en HTML/CSS/JavaScript vanilla.
 Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun serveur.
@@ -19,6 +19,7 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Photos de progression** (V3) : face / profil / dos, datées, stockées uniquement dans le navigateur (IndexedDB), comparaison dernière / 1 semaine / 1 mois / 3 mois, export/import séparé.
 - **Fruits et légumes à la pièce** (V3.1) : 1 banane, 1 tomate, 1 poignée de salade… avec calibre petit / moyen / gros et l'équivalent en grammes affiché ; 30 fruits et légumes ajoutés.
 - **Ciqual 2025 intégrée hors ligne** (V3.3) : 3 385 aliments de la table ANSES, dont environ 400 plats composés (lasagnes, couscous, hachis parmentier, quiches, pizzas, soupes, salades composées), 66 sandwichs, viennoiseries, desserts et boissons, avec portions types (assiette, part, bol, sandwich, verre). Les aliments de base sont liés à Ciqual (sauf skyr, whey, crème de riz). Licence Ouverte Etalab 2.0 ; données converties depuis github.com/OlivierFitter/ciqual_2025_complete.
+- **Recherche par ingrédient** (V3.13) : dans Recettes et dans l'onglet Recettes du journal, la recherche porte sur le nom et sur les ingrédients (« poulet », « fromage », « pâtes », « poulet riz »…), avec mots génériques (fromage, viande, poisson, laitage, chocolat) et rappel « Contient : … ».
 - **Photos synchronisées** (V3.12) : photos de recettes et de progression envoyées chiffrées dans un second gist (un fichier par photo, 640 px), téléchargées sur l'autre appareil ; suppressions propagées.
 - **Synchronisation Mac ↔ téléphone** (V3.11) : données chiffrées dans le navigateur (AES-GCM, clé dérivée d'une phrase secrète) puis stockées dans un gist secret de ton compte GitHub (jeton limité au droit « gist ») ; envoi automatique après chaque saisie, vérification à l'ouverture et au retour sur l'app, choix en cas de conflit.
 - **Favoris** (V3.10) : étoile sur les cartes, la fiche recette et l'onglet Recettes du journal ; filtre « ★ Favoris » ; favoris en tête de liste dans le journal ; option de plan « Privilégier mes favoris » ; léger avantage aux favoris dans les suggestions.
