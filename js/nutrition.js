@@ -11,7 +11,7 @@ FD.nutrition = (function () {
     { id: 'diner', label: 'Dîner', share: [0.30, 0.35] }
   ];
 
-  const FREE_KINDS = { libre: 'Repas libre', restaurant: 'Restaurant', dessert: 'Dessert', chocolat: 'Chocolat', alcool: 'Alcool', autre: 'Autre' };
+  const FREE_KINDS = { ajustement: 'Ajustement aux valeurs de la source', libre: 'Repas libre', restaurant: 'Restaurant', dessert: 'Dessert', chocolat: 'Chocolat', alcool: 'Alcool', autre: 'Autre' };
 
   function zero() { return { kcal: 0, p: 0, g: 0, l: 0, fib: 0, sug: 0, salt: 0 }; }
 

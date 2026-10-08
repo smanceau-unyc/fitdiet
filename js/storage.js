@@ -75,6 +75,7 @@ FD.storage = (function () {
       templates: (window.FD_DEFAULT_TEMPLATES || []).map((t) => JSON.parse(JSON.stringify(t))),
       settings: {
         theme: 'sombre',
+        recipeMacros: 'source', // macros des recettes importées : 'source' (livre) ou 'calcul' (ingrédients)
         coach: {
           stableWeekPct: 0.15,     // |variation hebdo| < 0,15 % du poids = stable
           waistStableCm: 0.5,      // variation < 0,5 cm = stable (erreur de mesure)

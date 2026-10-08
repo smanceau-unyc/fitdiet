@@ -8,15 +8,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=3.13">
+<link rel="stylesheet" href="css/style.css?v=3.14">
 </head>
-<body data-version="3.13">
+<body data-version="3.14">
 <div class="app">
   <aside class="sidebar">
     <div class="brand">FitDiet <span>Coach</span></div>
     <nav class="nav" aria-label="Navigation principale">
       <a href="#/tableau"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Tableau de bord</a>
       <a href="#/journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Journal</a>
+      <a href="#/macros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 19h8"/></svg>Calcul macro</a>
       <a href="#/plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.5h6V4M9 10h6M9 14h6M9 18h3"/></svg>Plan</a>
       <a href="#/recettes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 0 2 2h13"/><path d="M9 7h6"/></svg>Recettes</a>
       <a href="#/courses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a1.5 1.5 0 0 0 1.5 1.1h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/></svg>Courses</a>
@@ -26,39 +27,39 @@
       <a href="#/profil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</a>
       <a href="#/parametres"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Paramètres</a>
     </nav>
-    <p class="disclaimer">Estimations générales, pas un diagnostic médical.<br>Version 3.13</p>
+    <p class="disclaimer">Estimations générales, pas un diagnostic médical.<br>Version 3.14</p>
   </aside>
   <main class="main" id="view" tabindex="-1"></main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- Scripts classiques (pas de modules) : l'app fonctionne en ouvrant index.html directement -->
-<script src="js/utils.js?v=3.13"></script>
-<script src="data/foods.js?v=3.13"></script>
-<script src="data/recipes.js?v=3.13"></script>
-<script src="data/prices.js?v=3.13"></script>
-<script src="data/ciqual.js?v=3.13"></script>
-<script src="data/ciqual-links.js?v=3.13"></script>
-<script src="js/storage.js?v=3.13"></script>
-<script src="js/calculations.js?v=3.13"></script>
-<script src="js/foods.js?v=3.13"></script>
-<script src="js/nutrition.js?v=3.13"></script>
-<script src="js/tracking.js?v=3.13"></script>
-<script src="js/trends.js?v=3.13"></script>
-<script src="js/adherence.js?v=3.13"></script>
-<script src="js/coachEngine.js?v=3.13"></script>
-<script src="js/decisionHistory.js?v=3.13"></script>
-<script src="js/recipes.js?v=3.13"></script>
-<script src="js/recipeArt.js?v=3.13"></script>
-<script src="js/planner.js?v=3.13"></script>
-<script src="js/shopping.js?v=3.13"></script>
-<script src="js/ciqual.js?v=3.13"></script>
-<script src="js/prices.js?v=3.13"></script>
-<script src="js/scanner.js?v=3.13"></script>
-<script src="js/photos.js?v=3.13"></script>
-<script src="js/sync.js?v=3.13"></script>
-<script src="js/charts.js?v=3.13"></script>
-<script src="js/api.js?v=3.13"></script>
-<script src="js/app.js?v=3.13"></script>
+<script src="js/utils.js?v=3.14"></script>
+<script src="data/foods.js?v=3.14"></script>
+<script src="data/recipes.js?v=3.14"></script>
+<script src="data/prices.js?v=3.14"></script>
+<script src="data/ciqual.js?v=3.14"></script>
+<script src="data/ciqual-links.js?v=3.14"></script>
+<script src="js/storage.js?v=3.14"></script>
+<script src="js/calculations.js?v=3.14"></script>
+<script src="js/foods.js?v=3.14"></script>
+<script src="js/nutrition.js?v=3.14"></script>
+<script src="js/tracking.js?v=3.14"></script>
+<script src="js/trends.js?v=3.14"></script>
+<script src="js/adherence.js?v=3.14"></script>
+<script src="js/coachEngine.js?v=3.14"></script>
+<script src="js/decisionHistory.js?v=3.14"></script>
+<script src="js/recipes.js?v=3.14"></script>
+<script src="js/recipeArt.js?v=3.14"></script>
+<script src="js/planner.js?v=3.14"></script>
+<script src="js/shopping.js?v=3.14"></script>
+<script src="js/ciqual.js?v=3.14"></script>
+<script src="js/prices.js?v=3.14"></script>
+<script src="js/scanner.js?v=3.14"></script>
+<script src="js/photos.js?v=3.14"></script>
+<script src="js/sync.js?v=3.14"></script>
+<script src="js/charts.js?v=3.14"></script>
+<script src="js/api.js?v=3.14"></script>
+<script src="js/app.js?v=3.14"></script>
 </body>
 </html>

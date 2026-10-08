@@ -1,4 +1,4 @@
-# FitDiet Coach — version 3.13
+# FitDiet Coach — version 3.14
 
 Application de suivi nutritionnel sportif en HTML/CSS/JavaScript vanilla.
 Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun serveur.
@@ -19,6 +19,8 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Photos de progression** (V3) : face / profil / dos, datées, stockées uniquement dans le navigateur (IndexedDB), comparaison dernière / 1 semaine / 1 mois / 3 mois, export/import séparé.
 - **Fruits et légumes à la pièce** (V3.1) : 1 banane, 1 tomate, 1 poignée de salade… avec calibre petit / moyen / gros et l'équivalent en grammes affiché ; 30 fruits et légumes ajoutés.
 - **Ciqual 2025 intégrée hors ligne** (V3.3) : 3 385 aliments de la table ANSES, dont environ 400 plats composés (lasagnes, couscous, hachis parmentier, quiches, pizzas, soupes, salades composées), 66 sandwichs, viennoiseries, desserts et boissons, avec portions types (assiette, part, bol, sandwich, verre). Les aliments de base sont liés à Ciqual (sauf skyr, whey, crème de riz). Licence Ouverte Etalab 2.0 ; données converties depuis github.com/OlivierFitter/ciqual_2025_complete.
+- **Valeurs du livre** (V3.14) : les recettes importées avec macros annoncées (kcal, P, G, L par portion) comptent ces valeurs partout (journal, plan, suggestions), recalées proportionnellement pour une portion ajustée ; réglage « Valeurs du livre / Calcul par ingrédients » dans Paramètres.
+- **Calcul macro** (V3.14) : onglet dédié — métabolisme de base (Mifflin-St Jeor ou Harris-Benedict), facteur d'activité, pas (÷ 1 000 × 40 kcal), objectif (sèche −10 %, maintien, prise de masse +20 %), répartition des macros en %, grammes et g/kg, bouton « Appliquer à mes objectifs ».
 - **Recherche par ingrédient** (V3.13) : dans Recettes et dans l'onglet Recettes du journal, la recherche porte sur le nom et sur les ingrédients (« poulet », « fromage », « pâtes », « poulet riz »…), avec mots génériques (fromage, viande, poisson, laitage, chocolat) et rappel « Contient : … ».
 - **Photos synchronisées** (V3.12) : photos de recettes et de progression envoyées chiffrées dans un second gist (un fichier par photo, 640 px), téléchargées sur l'autre appareil ; suppressions propagées.
 - **Synchronisation Mac ↔ téléphone** (V3.11) : données chiffrées dans le navigateur (AES-GCM, clé dérivée d'une phrase secrète) puis stockées dans un gist secret de ton compte GitHub (jeton limité au droit « gist ») ; envoi automatique après chaque saisie, vérification à l'ouverture et au retour sur l'app, choix en cas de conflit.
@@ -36,7 +38,7 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Lipides quotidiens** (V3.4) : objectif de lipides en g/jour dans le profil (65 g par défaut), appliqué à toutes les séances ; les glucides prennent le reste. Champ vide = lipides réglés séance par séance.
 - **Fractions** (V3.3) : « 1/2 », « ½ », « 1 1/2 » acceptés, boutons ¼ ½ ¾ 1 1½ 2, affichage « ½ × avocat ».
 - **Prix** (V3) : prix indicatifs modifiables, coût estimé par jour, par plan et pour la liste de courses, budget hebdomadaire du profil pris en compte par le générateur (sans sacrifier les protéines).
-- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 26 scénarios.
+- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 27 scénarios.
 
 ## Architecture
 

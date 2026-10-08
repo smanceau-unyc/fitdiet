@@ -721,6 +721,10 @@
       '<section class="card"><h2>Données de démonstration</h2><p>Génère 4 semaines d\'historique fictif (poids stable, tour de taille en baisse, ≈ 6 700 pas) pour explorer les graphiques et le coach.</p>' +
         '<div class="inline"><button class="btn" data-action="demo">Charger la démo</button>' + (S.meta.demoData ? '<button class="btn danger" data-action="clear-days">Effacer l\'historique</button>' : '') + '</div>' +
         '<p class="small muted">Attention : la démo remplace ton historique (profil et réglages conservés).' + (S.meta.demoData ? ' Des données de démo sont actuellement chargées.' : '') + '</p></section>' +
+      '<section class="card"><h2>Macros des recettes importées</h2><div class="seg" role="group" aria-label="Macros des recettes">' +
+        '<button type="button" data-action="recipe-macros" data-v="source" aria-pressed="' + ((S.settings.recipeMacros || 'source') === 'source') + '">Valeurs du livre</button>' +
+        '<button type="button" data-action="recipe-macros" data-v="calcul" aria-pressed="' + (S.settings.recipeMacros === 'calcul') + '">Calcul par ingrédients</button></div>' +
+        '<p class="small muted">« Valeurs du livre » : les recettes Cook for Zey comptent les calories et macros annoncées par le livre (les jus, sans valeurs dans le livre, restent calculés). « Calcul par ingrédients » : somme des ingrédients avec Ciqual. Les recettes déjà ajoutées au journal gardent leurs valeurs.</p></section>' +
       '<form class="card" data-form="coachcfg"><h2>Réglages du coach</h2><div class="form-grid">' +
         '<label>Seuil « poids stable » (% / semaine)<input type="text" inputmode="decimal" name="stableWeekPct" value="' + U.num(c.stableWeekPct, 2) + '"></label>' +
         '<label>Seuil « taille stable » (cm)<input type="text" inputmode="decimal" name="waistStableCm" value="' + U.num(c.waistStableCm, 1) + '"></label>' +
@@ -780,7 +784,7 @@
       .sort((a, b) => (R.isFav(S, b.id) - R.isFav(S, a.id)) || (a.meals.includes(ui.meal) ? 0 : 1) - (b.meals.includes(ui.meal) ? 0 : 1) || a.name.localeCompare(b.name));
     if (!list.length) return '<p class="small muted">Aucune recette ne correspond.</p>';
     return list.slice(0, 40).map((r) => {
-      const per = R.compute(S, r).per;
+      const per = R.perPortion(S, r);
       const qid = 'jrq-' + r.id;
       return '<div class="jr-row"><div class="recipe-thumb small-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, r) + '</div>' +
         '<div class="stack" style="gap:2px;min-width:0;flex:1"><div class="inline" style="gap:6px;flex-wrap:nowrap">' + '<button type="button" class="fav-btn" data-action="fav" data-id="' + esc(r.id) + '" aria-pressed="' + R.isFav(S, r.id) + '" aria-label="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '" title="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '">' + (R.isFav(S, r.id) ? '★' : '☆') + '</button>' + '<strong>' + esc(r.name) + '</strong></div><span class="small muted">1 portion : ' + macroLine(per) + '</span>' + (function () { const m = ui.jrQuery ? R.matchQuery(S, r, ui.jrQuery) : null; return m && m.viaIngredients.length ? '<span class="small teal">Contient : ' + esc(m.viaIngredients.slice(0, 3).join(', ').toLowerCase()) + '</span>' : ''; })() + '</div>' +
@@ -855,7 +859,7 @@
   }
 
   function recipeCard(r) {
-    const c = R.compute(S, r);
+    const c = { per: R.perPortion(S, r) };
     const allowed = R.recipeAllowed(S, r);
     return '<article class="recipe-card"><div class="recipe-thumb" data-photo="' + esc(r.id) + '" aria-hidden="true">' + FD.recipeArt.svg(S, r) + '</div><div class="stack" style="gap:4px">' +
       '<div class="between" style="align-items:flex-start"><strong>' + esc(r.name) + '</strong>' + '<button type="button" class="fav-btn" data-action="fav" data-id="' + esc(r.id) + '" aria-pressed="' + R.isFav(S, r.id) + '" aria-label="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '" title="' + (R.isFav(S, r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '">' + (R.isFav(S, r.id) ? '★' : '☆') + '</button>' + '</div><span class="small muted">' + r.meals.map((m) => MEAL_LABEL[m]).join(', ') + ' · ' + ((r.prep || 0) + (r.cook || 0)) + ' min · ' + r.servings + ' portion' + (r.servings > 1 ? 's' : '') + '</span>' +
@@ -886,10 +890,12 @@
       '<label style="flex-direction:row;align-items:center;gap:8px">Portions<input type="number" min="1" max="12" value="' + ui.rServings + '" data-change="r-servings" style="width:72px"></label></div>' +
       '<div class="table-wrap"><table><thead><tr><th>Ingrédient</th><th class="num">Quantité</th><th class="num">kcal</th><th class="num">P</th><th class="num">G</th><th class="num">L</th><th class="num">Fibres</th><th></th></tr></thead><tbody>' + rows +
       '<tr><td><strong>Total</strong></td><td></td><td class="num"><strong>' + U.num(c.total.kcal) + '</strong></td><td class="num">' + U.num(c.total.p) + '</td><td class="num">' + U.num(c.total.g) + '</td><td class="num">' + U.num(c.total.l) + '</td><td class="num">' + U.num(c.total.fib, 1) + '</td><td></td></tr>' +
-      '<tr><td><strong>Par portion</strong></td><td></td><td class="num"><strong>' + U.num(c.per.kcal) + '</strong></td><td class="num">' + U.num(c.per.p) + '</td><td class="num">' + U.num(c.per.g) + '</td><td class="num">' + U.num(c.per.l) + '</td><td class="num">' + U.num(c.per.fib, 1) + '</td><td></td></tr></tbody></table></div>' +
+      '<tr><td><strong>Par portion</strong>' + (R.useSource(S, r) ? ' <span class="small muted">(calcul ingrédients)</span>' : '') + '</td><td></td><td class="num"><strong>' + U.num(c.per.kcal) + '</strong></td><td class="num">' + U.num(c.per.p) + '</td><td class="num">' + U.num(c.per.g) + '</td><td class="num">' + U.num(c.per.l) + '</td><td class="num">' + U.num(c.per.fib, 1) + '</td><td></td></tr>' +
+      (R.useSource(S, r) ? (function () { const b = R.sourcePer(r), k = ratio; return '<tr class="source-row"><td><strong>Par portion — valeurs utilisées</strong><br><span class="small muted">' + esc((r.source && r.source.collection) || 'source') + '</span></td><td></td><td class="num"><strong>' + U.num(b.kcal) + '</strong></td><td class="num"><strong>' + U.num(b.p) + '</strong></td><td class="num"><strong>' + U.num(b.g) + '</strong></td><td class="num"><strong>' + U.num(b.l) + '</strong></td><td></td><td></td></tr>'; })() : '') +
+      '</tbody></table></div>' +
       (c.missing.length ? '<div class="alert warn">Ingrédients introuvables, non comptés : ' + esc(c.missing.join(', ')) + '</div>' : '') +
       '<p class="small muted">Macros calculées en additionnant chaque ingrédient puis en divisant par ' + ui.rServings + ' portion' + (ui.rServings > 1 ? 's' : '') + '.' + (c.variable ? ' Certaines valeurs dépendent de la marque : vérifier l\'étiquette.' : '') + (c.sources.includes('demo') ? ' Valeurs de démonstration, indicatives.' : '') + ' Une substitution conserve l\'apport principal de l\'ingrédient (protéines ou glucides). Les équivalences cru ↔ cuit (en vert) sont estimées à partir des valeurs Ciqual : elles varient selon la cuisson et l\'eau absorbée.</p>' +
-      (r.bookMacros ? '<p class="small muted">Valeurs annoncées par la source pour 1 portion : ' + U.num(r.bookMacros[0]) + ' kcal, P ' + U.num(r.bookMacros[1]) + ' g' + (r.bookMacros.length > 2 ? ', G ' + U.num(r.bookMacros[2]) + ' g, L ' + U.num(r.bookMacros[3], 1) + ' g' : '') + '. L\'app recalcule à partir des ingrédients (Ciqual), d\'où d\'éventuels écarts.</p>' : '') +
+      (R.useSource(S, r) ? '<p class="small">L\'app compte les <strong>valeurs de la source</strong> (' + esc((r.source && r.source.collection) || 'livre') + ') : journal, plan et suggestions. Le calcul à partir des ingrédients (Ciqual) est affiché pour comparaison ; tu peux changer ce choix dans Paramètres.</p>' : (r.bookMacros ? '<p class="small muted">Valeurs annoncées par la source pour 1 portion : ' + U.num(r.bookMacros[0]) + ' kcal, P ' + U.num(r.bookMacros[1]) + ' g. L\'app utilise ici le calcul à partir des ingrédients (réglage Paramètres).</p>' : '')) +
       (r.note ? '<p class="small muted">' + esc(r.note) + '</p>' : '') +
       '<div><p class="kicker">Préparation</p><ol style="margin:6px 0 0;padding-left:20px">' + (r.steps || []).map((s) => '<li>' + esc(s) + '</li>').join('') + '</ol></div>' +
       '<p class="small muted">Source : ' + esc(R.sourceLabel(r)) + (r.source && r.source.collection ? ' — étapes résumées ; explications détaillées et photos dans le livre.' : '') + '</p>' +
@@ -1068,14 +1074,101 @@
     let n = 0;
     const group = recipe ? { id: U.uid(), recipeId: recipe.id, name: recipe.name, label: label || '1 portion', scale: 1 } : null;
     ings.forEach((i) => { const f = F.byId(S, i.foodId); if (f) { T.addFood(S, iso, f, i.qty, i.unit, meal, group); n++; } });
+    // Recettes avec valeurs de la source : une ligne d'ajustement pour que le total corresponde au livre
+    if (recipe && R.useSource(S, recipe)) {
+      const raw = R.compute(S, { servings: 1 }, ings).total, cal = R.calibrate(S, recipe, raw);
+      const d = { kcal: cal.kcal - raw.kcal, p: cal.p - raw.p, g: cal.g - raw.g, l: cal.l - raw.l };
+      if (Math.abs(d.kcal) >= 1 || Math.abs(d.p) >= 0.5) {
+        const src = (recipe.source && recipe.source.collection) || 'la source';
+        T.addFree(S, iso, { name: 'Ajustement aux valeurs ' + src, kind: 'ajustement', meal, group, kcal: Math.round(d.kcal), p: Math.round(d.p * 10) / 10, g: Math.round(d.g * 10) / 10, l: Math.round(d.l * 10) / 10 });
+      }
+    }
     return n;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Calcul macro (méthode : MB → activité → pas → objectif → répartition) */
+  /* ------------------------------------------------------------------ */
+
+  const MC_FACTORS = [[1.2, 'Sédentaire'], [1.375, '1 à 3 jours de sport / semaine'], [1.55, '3 à 5 jours / semaine'], [1.725, '6 à 7 jours / semaine'], [1.9, 'Sport quotidien (intense)']];
+  const MC_GOALS = {
+    seche: { label: 'Sèche', factor: 0.9, ranges: { p: [35, 40], g: [30, 40], l: [20, 25] }, def: { p: 38, l: 25 } },
+    maintien: { label: 'Maintien', factor: 1, ranges: { p: [30, 35], g: [40, 45], l: [20, 25] }, def: { p: 33, l: 23 } },
+    pdm: { label: 'Prise de masse', factor: 1.2, ranges: { p: [25, 30], g: [50, 50], l: [20, 25] }, def: { p: 28, l: 22 } }
+  };
+
+  function mcState() {
+    const p = S.profile;
+    S.settings.macroCalc = S.settings.macroCalc || {};
+    return Object.assign({ sex: p.sex, age: p.age, height: p.height, weight: p.weight, formula: 'mifflin', factor: 1.55, steps: p.steps || 0, goal: 'seche', pPct: null, lPct: null }, S.settings.macroCalc);
+  }
+
+  /** Calcul complet selon la méthode du livre. */
+  function mcCompute(m) {
+    const H = m.sex !== 'femme';
+    const mb = m.formula === 'harris'
+      ? (H ? 66 + 13.7 * m.weight + 5 * m.height - 6.5 * m.age : 655 + 9.6 * m.weight + 1.8 * m.height - 4.7 * m.age)
+      : 10 * m.weight + 6.25 * m.height - 5 * m.age + (H ? 5 : -161);
+    const act = mb * m.factor;
+    const stepsKcal = (m.steps || 0) / 1000 * 40;
+    const total = act + stepsKcal;
+    const G = MC_GOALS[m.goal] || MC_GOALS.seche;
+    const target = total * G.factor;
+    const pPct = m.pPct || G.def.p, lPct = m.lPct || G.def.l, gPct = Math.max(0, 100 - pPct - lPct);
+    const grams = { p: target * pPct / 100 / 4, g: target * gPct / 100 / 4, l: target * lPct / 100 / 9 };
+    return { mb, act, stepsKcal, total, target, goal: G, pct: { p: pPct, g: gPct, l: lPct }, grams };
+  }
+
+  function vMacros() {
+    const m = mcState();
+    const r = mcCompute(m);
+    const p = S.profile;
+    const inRange = (k) => r.pct[k] >= r.goal.ranges[k][0] && r.pct[k] <= r.goal.ranges[k][1];
+    const pctCell = (k, lab) => '<td class="num">' + U.num(r.pct[k]) + ' %' + (inRange(k) ? '' : ' <span class="small" style="color:var(--warn)">(conseillé ' + r.goal.ranges[k].join('–') + ' %)</span>') + '</td>';
+    const cur = C.dayTarget(S, today());
+    const num = (n, d) => U.num(n, d || 0);
+    return '<div class="container">' +
+      '<div class="page-head"><div><h1>Calcul macro</h1><p class="sub">Métabolisme de base → activité → pas → objectif → répartition des macros.</p></div></div>' +
+      '<div class="row">' +
+      '<form class="card wide" data-form="mc" aria-label="Paramètres du calcul"><div class="form-grid">' +
+        '<label>Sexe<select name="sex" data-change="mc">' + opts([['homme', 'Homme'], ['femme', 'Femme']], m.sex) + '</select></label>' +
+        '<label>Âge<input type="number" name="age" value="' + m.age + '" data-change="mc"></label>' +
+        '<label>Taille (cm)<input type="number" name="height" value="' + m.height + '" data-change="mc"></label>' +
+        '<label>Poids (kg)<input type="text" inputmode="decimal" name="weight" value="' + num(m.weight, 1) + '" data-change="mc"></label>' +
+        '<label>Formule du métabolisme<select name="formula" data-change="mc">' + opts([['mifflin', 'Mifflin-St Jeor (vol. 1)'], ['harris', 'Harris-Benedict (vol. 2)']], m.formula) + '</select></label>' +
+        '<label>Activité physique<select name="factor" data-change="mc">' + opts(MC_FACTORS.map((f) => [f[0], f[1] + ' (× ' + String(f[0]).replace('.', ',') + ')']), m.factor) + '</select></label>' +
+        '<label>Pas par jour<input type="number" name="steps" value="' + (m.steps || 0) + '" data-change="mc"></label>' +
+        '<label>Objectif<select name="goal" data-change="mc">' + opts(Object.entries(MC_GOALS).map((e) => [e[0], e[1].label + (e[1].factor === 1 ? ' (= besoin total)' : ' (' + (e[1].factor > 1 ? '+' : '−') + Math.round(Math.abs(e[1].factor - 1) * 100) + ' %)')]), m.goal) + '</select></label>' +
+        '<label>Protéines (% des calories)<input type="number" name="pPct" min="10" max="60" value="' + r.pct.p + '" data-change="mc"></label>' +
+        '<label>Lipides (% des calories)<input type="number" name="lPct" min="10" max="50" value="' + r.pct.l + '" data-change="mc"></label>' +
+      '</div><p class="small muted">Glucides = le reste (' + num(r.pct.g) + ' %). Répartition conseillée pour « ' + esc(r.goal.label) + ' » : protéines ' + r.goal.ranges.p.join('–') + ' %, glucides ' + r.goal.ranges.g.join('–') + ' %, lipides ' + r.goal.ranges.l.join('–') + ' %. ' +
+        '<button type="button" class="btn sm ghost" data-action="mc-defaults">Répartition par défaut</button></p></form>' +
+      '<section class="card"><h2>Résultat</h2><dl class="kv" style="grid-template-columns:1fr max-content">' +
+        '<dt>1. Métabolisme de base</dt><dd>' + U.kcal(r.mb) + ' kcal</dd>' +
+        '<dt>2. × activité (' + String(m.factor).replace('.', ',') + ')</dt><dd>' + U.kcal(r.act) + ' kcal</dd>' +
+        '<dt>3. + pas (' + U.num(m.steps || 0) + ' ÷ 1 000 × 40)</dt><dd>+ ' + U.kcal(r.stepsKcal) + ' kcal</dd>' +
+        '<dt>4. Total calorique</dt><dd><strong>' + U.kcal(r.total) + ' kcal</strong></dd>' +
+        '<dt>5. Objectif ' + esc(r.goal.label.toLowerCase()) + '</dt><dd><span class="mid-num accent">' + U.kcal(r.target) + ' kcal</span>' + (r.goal.factor !== 1 ? '<br><span class="small muted">' + (r.goal.factor < 1 ? 'déficit' : 'surplus') + ' ≈ ' + U.kcal(Math.abs(r.target - r.total)) + ' kcal/jour</span>' : '') + '</dd>' +
+      '</dl></section></div>' +
+      '<section class="card"><h2>6. Répartition des macros</h2><div class="table-wrap"><table><thead><tr><th>Macro</th><th class="num">%</th><th class="num">Grammes / jour</th><th class="num">kcal</th><th class="num">g / kg</th></tr></thead><tbody>' +
+        '<tr><td>Protéines (4 kcal/g)</td>' + pctCell('p') + '<td class="num"><strong>' + num(r.grams.p) + ' g</strong></td><td class="num">' + U.kcal(r.grams.p * 4) + '</td><td class="num">' + num(r.grams.p / m.weight, 1) + '</td></tr>' +
+        '<tr><td>Glucides (4 kcal/g)</td>' + pctCell('g') + '<td class="num"><strong>' + num(r.grams.g) + ' g</strong></td><td class="num">' + U.kcal(r.grams.g * 4) + '</td><td class="num">' + num(r.grams.g / m.weight, 1) + '</td></tr>' +
+        '<tr><td>Lipides (9 kcal/g)</td>' + pctCell('l') + '<td class="num"><strong>' + num(r.grams.l) + ' g</strong></td><td class="num">' + U.kcal(r.grams.l * 9) + '</td><td class="num">' + num(r.grams.l / m.weight, 2) + '</td></tr>' +
+      '</tbody></table></div>' +
+      (r.grams.p / m.weight > 2.4 ? '<div class="alert warn">Protéines au-delà de 2,2 g/kg : le bénéfice supplémentaire est peu documenté ; tu peux baisser le pourcentage de protéines au profit des glucides.</div>' : '') +
+      (r.grams.l / m.weight < 0.7 ? '<div class="alert warn">Lipides sous 0,7 g/kg : remonte un peu le pourcentage de lipides.</div>' : '') +
+      '<p class="small">Tes objectifs actuels dans l\'app (jour de ' + esc(cur.type.label.toLowerCase()) + ') : ' + U.kcal(cur.kcal) + ' kcal · P ' + num(cur.p) + ' g · G ≈ ' + num(cur.g) + ' g · L ' + num(cur.l) + ' g.</p>' +
+      '<div class="inline"><button class="btn primary" data-action="mc-apply">Appliquer à mes objectifs</button></div>' +
+      '<p class="small muted">« Appliquer » règle tes protéines et lipides quotidiens, place le plafond calorique sur ' + U.kcal(r.target) + ' kcal et décale tes types de séance d\'autant (les jours de repos restent un peu plus bas, les glucides prennent le reste). ' +
+      'Le facteur d\'activité compte déjà une partie de ton mouvement : ajouter les pas peut légèrement surestimer la dépense. Le coach recalibre ensuite selon l\'évolution réelle de ton poids et de ton tour de taille.</p></section>' +
+      legal + '</div>';
   }
 
   /* ------------------------------------------------------------------ */
   /* Routeur                                                              */
   /* ------------------------------------------------------------------ */
 
-  const VIEWS = { tableau: vTableau, journal: vJournal, plan: vPlan, recettes: vRecettes, courses: vCourses, semaine: vSemaine, suivi: vSuivi, coach: vCoach, profil: vProfil, parametres: vParametres };
+  const VIEWS = { tableau: vTableau, journal: vJournal, macros: vMacros, plan: vPlan, recettes: vRecettes, courses: vCourses, semaine: vSemaine, suivi: vSuivi, coach: vCoach, profil: vProfil, parametres: vParametres };
 
   function currentRoute() {
     const r = (location.hash || '#/tableau').replace('#/', '');
@@ -1173,6 +1266,26 @@
       }
       case 'reeval': FD.history.record(S, FD.coach.evaluateUserState(S, today())); commit('Analyse mise à jour.'); break;
       case 'theme': S.settings.theme = el.dataset.v; applyTheme(); commit(); break;
+      case 'mc-defaults': { const mcs = S.settings.macroCalc = S.settings.macroCalc || {}; mcs.pPct = null; mcs.lPct = null; commit(); break; }
+      case 'mc-apply': {
+        const m = mcState(), r = mcCompute(m);
+        const target = Math.round(r.target / 10) * 10;
+        if (!confirm('Appliquer ' + U.kcal(target) + ' kcal/jour, ' + Math.round(r.grams.p) + ' g de protéines et ' + Math.round(r.grams.l) + ' g de lipides à tes objectifs ?')) break;
+        const p = S.profile;
+        const maxType = Math.max.apply(null, S.sessionTypes.map((t) => t.kcal));
+        const delta = target - maxType;
+        S.sessionTypes.forEach((t) => { t.kcal = Math.round((t.kcal + delta) / 10) * 10; });
+        p.kcalOffset = 0;
+        p.kcalMax = target;
+        p.kcalMin = Math.min.apply(null, S.sessionTypes.map((t) => t.kcal));
+        p.proteinG = Math.round(r.grams.p);
+        p.fatG = Math.round(r.grams.l);
+        p.goal = m.goal === 'seche' ? 'perte' : m.goal === 'pdm' ? 'prise' : 'maintien';
+        if (m.weight) p.weight = m.weight;
+        commit('Objectifs mis à jour : ' + U.kcal(target) + ' kcal, P ' + p.proteinG + ' g, L ' + p.fatG + ' g.');
+        break;
+      }
+      case 'recipe-macros': S.settings.recipeMacros = el.dataset.v; commit(el.dataset.v === 'source' ? 'Les recettes importées utilisent les valeurs du livre.' : 'Les recettes utilisent le calcul par ingrédients.'); break;
       case 'export': FD.storage.exportJSON(S); toast('Export téléchargé.'); break;
       case 'sync-now': syncNow(true); break;
       case 'sync-photos': syncPhotosNow(true); break;
@@ -1421,6 +1534,14 @@
 
       case 'r-servings': { const n = parseInt(el.value, 10); if (n > 0) { ui.rServings = n; render(); } break; }
       case 'r-meal': ui.rMeal = el.value; break;
+      case 'mc': {
+        const mcs = S.settings.macroCalc = S.settings.macroCalc || {};
+        const n = U.parseNum(el.value);
+        if (['sex', 'formula', 'goal'].includes(el.name)) { mcs[el.name] = el.value; if (el.name === 'goal') { mcs.pPct = null; mcs.lPct = null; } }
+        else if (el.name === 'factor') mcs.factor = parseFloat(el.value);
+        else if (n !== null && n >= 0) mcs[el.name] = n;
+        save(); render(); break;
+      }
       case 'r-filter': ui.rFilterMeal = el.value; render(); break;
       case 'r-collection': ui.rCollection = el.value; render(); break;
       case 'r-photo': {

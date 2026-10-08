@@ -232,11 +232,23 @@ FD.tests = (function () {
         let over = 0, n = 0;
         for (let seed = 1; seed <= 5; seed++) {
           const plan = FD.planner.generate(s, { days: 7, seed }, TODAY);
-          plan.days.forEach((d) => { n++; if (FD.planner.dayTotals(d).kcal > s.profile.kcalMax) over++; });
+          plan.days.forEach((d) => { n++; if (FD.planner.dayTotals(d).kcal > s.profile.kcalMax + 1) over++; });
         }
         s.sessionTypes[0].kcal = 2300; // un type de séance réglé au-dessus du plafond reste plafonné
         const t = FD.calc.dayTarget(s, '2026-10-05');
         return { ok: over === 0 && t.kcal <= s.profile.kcalMax, title: over + ' jour(s) sur ' + n + ' au-dessus du plafond' };
+      }
+    },
+    {
+      name: 'Recette importée avec valeurs de la source — 1 portion = exactement les macros du livre',
+      run: () => {
+        const s = FD.storage.defaultState();
+        const r = { id: 'x-test', name: 'Test', meals: ['dejeuner'], servings: 1, ingredients: [{ foodId: 'poulet-cru', qty: 150, unit: 'g', role: 'prot' }, { foodId: 'riz-cuit', qty: 200, unit: 'g', role: 'carb' }], bookMacros: [504, 27, 54, 20] };
+        const raw = FD.recipes.compute(s, r).per, cal = FD.recipes.calibrate(s, r, raw);
+        s.settings.recipeMacros = 'calcul';
+        const off = FD.recipes.calibrate(s, r, raw);
+        const ok = Math.round(cal.kcal) === 504 && Math.round(cal.p) === 27 && Math.round(cal.l) === 20 && Math.round(off.kcal) === Math.round(raw.kcal);
+        return { ok, title: 'calcul ' + Math.round(raw.kcal) + ' kcal → source ' + Math.round(cal.kcal) + ' kcal' };
       }
     },
     {

@@ -166,7 +166,7 @@ FD.planner = (function () {
         if (f.totals.kcal > m.totals.kcal - over) {
           const ratio = Math.max(0.6, (m.totals.kcal - over - 10) / m.totals.kcal);
           const ings = m.ingredients.map((i) => Object.assign({}, i, { qty: FD.recipes.roundQty(i.qty * ratio, i.unit, FD.foods.byId(state, i.foodId)) }));
-          f = { ingredients: ings, totals: FD.recipes.compute(state, { servings: 1 }, ings).total };
+          f = { ingredients: ings, totals: FD.recipes.calibrate(state, r, FD.recipes.compute(state, { servings: 1 }, ings).total) };
         }
         if (f.totals.kcal < m.totals.kcal) Object.assign(m, { ingredients: f.ingredients, totals: f.totals });
       }
@@ -177,7 +177,9 @@ FD.planner = (function () {
 
   /** Recalcule les totaux d'un repas après modification de ses ingrédients. */
   function recompute(state, meal) {
-    meal.totals = FD.recipes.compute(state, { servings: 1 }, meal.ingredients).total;
+    const r = meal.recipeId && FD.recipes.byId(state, meal.recipeId);
+    const t = FD.recipes.compute(state, { servings: 1 }, meal.ingredients).total;
+    meal.totals = r ? FD.recipes.calibrate(state, r, t) : t;
     return meal;
   }
 

@@ -82,6 +82,7 @@ FD.tracking = (function () {
     d.foods.forEach((x) => {
       if (!x.group || x.group.id !== groupId) return;
       const old = x.group.scale || 1;
+      if (x.free) { ['kcal', 'p', 'g', 'l', 'fib'].forEach((k) => { if (typeof x[k] === 'number') x[k] = Math.round(x[k] * newScale / old * 10) / 10; }); x.group = Object.assign({}, x.group, { scale: newScale }); return; }
       const q = x.qty * newScale / old;
       x.qty = FD.foods.isPiece(x.unit) || x.unit === 'portion' ? Math.max(0.5, Math.round(q * 2) / 2) : Math.round(q * 10) / 10;
       x.group = Object.assign({}, x.group, { scale: newScale });

@@ -53,6 +53,39 @@ FD.recipes = (function () {
     return { total, per, lines, missing, variable, sources: Object.keys(sources) };
   }
 
+  /* ---------------- Valeurs de la source (livre) ---------------- */
+  // Réglage : 'source' (défaut) = macros annoncées par la recette importée ; 'calcul' = somme des ingrédients
+  function useSource(state, r) {
+    return !!(r && Array.isArray(r.bookMacros) && r.bookMacros.length >= 4 && ((state.settings && state.settings.recipeMacros) || 'source') === 'source');
+  }
+  function sourcePer(r) { const b = r.bookMacros; return { kcal: b[0], p: b[1], g: b[2], l: b[3] }; }
+  const rawCache = new Map();
+  function rawPer(state, r) {
+    const key = r.id + '|' + JSON.stringify(r.ingredients.map((i) => [i.foodId, i.qty, i.unit])) + '|' + JSON.stringify(state.foodLinks || {});
+    if (!rawCache.has(key)) rawCache.set(key, compute(state, r).per);
+    return rawCache.get(key);
+  }
+
+  /**
+   * Recale des totaux calculés sur les valeurs de la source : pour une portion standard, on obtient
+   * exactement les macros du livre ; pour une portion plus grande ou plus petite, l'écart est proportionnel.
+   */
+  function calibrate(state, r, totals) {
+    if (!useSource(state, r)) return totals;
+    const raw = rawPer(state, r);
+    if (!raw.kcal) return totals;
+    const k = totals.kcal / raw.kcal, b = sourcePer(r), out = Object.assign({}, totals);
+    ['kcal', 'p', 'g', 'l'].forEach((m) => { out[m] = Math.max(0, totals[m] + (b[m] - raw[m]) * k); });
+    out.calibrated = true;
+    return out;
+  }
+
+  /** Valeurs d'une portion telles qu'affichées et comptées par l'app. */
+  function perPortion(state, r) {
+    const c = compute(state, r);
+    return useSource(state, r) ? Object.assign({}, c.per, sourcePer(r), { fromSource: true }) : c.per;
+  }
+
   /** Arrondi d'une quantité selon l'unité (pas de fausse précision). */
   function roundQty(qty, unit, food) {
     if (FD.foods.isPiece(unit)) {
@@ -87,7 +120,12 @@ FD.recipes = (function () {
     const P = groupVal('prot'), Cb = groupVal('carb'), O = groupVal('other');
     let a = 1, c = 1;
     if (target && target.kcal) {
-      const tp = target.p, tk = target.kcal;
+      let tp = target.p, tk = target.kcal;
+      if (useSource(state, recipe)) {
+        // la cible est exprimée en valeurs de la source : on la convertit en valeurs « ingrédients »
+        const raw = rawPer(state, recipe), b = sourcePer(recipe), r0 = tk / b.kcal;
+        tk = tk - (b.kcal - raw.kcal) * r0; tp = tp - (b.p - raw.p) * r0;
+      }
       const det = P.p * Cb.kcal - Cb.p * P.kcal;
       if (Math.abs(det) > 1e-6 && P.kcal + Cb.kcal > 0) {
         a = ((tp - O.p) * Cb.kcal - Cb.p * (tk - O.kcal)) / det;
@@ -109,7 +147,7 @@ FD.recipes = (function () {
       return Object.assign({ foodId: i.foodId, unit: i.unit, role: i.role, qty }, i.note ? { note: i.note } : {});
     });
     const res = compute(state, { servings: 1 }, scaled);
-    return { ingredients: scaled, totals: res.total, factors: { prot: a, carb: c }, variable: res.variable };
+    return { ingredients: scaled, totals: calibrate(state, recipe, res.total), rawTotals: res.total, factors: { prot: a, carb: c }, variable: res.variable };
   }
 
   /** Écart entre un repas et sa cible (0 = parfait). Les protéines manquantes pèsent plus lourd. */
@@ -324,5 +362,5 @@ FD.recipes = (function () {
     return !!state.favorites[id];
   }
 
-  return { matchQuery, isFav, toggleFav, CATEGORIES, category, cookEquivalent, importCollection, collections, all, byId, sourceLabel, compute, roundQty, perServing, fit, fitError, substitutesFor, substitute, foodAllowed, recipeAllowed, suggest, SOURCE_APP };
+  return { useSource, sourcePer, calibrate, perPortion, matchQuery, isFav, toggleFav, CATEGORIES, category, cookEquivalent, importCollection, collections, all, byId, sourceLabel, compute, roundQty, perServing, fit, fitError, substitutesFor, substitute, foodAllowed, recipeAllowed, suggest, SOURCE_APP };
 })();
