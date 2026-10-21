@@ -102,6 +102,19 @@ FD.tests = (function () {
   /* Tests de la livraison 2 (recettes, plan, substitutions) — n'utilisent pas le moteur coach. */
   const EXTRA = [
     {
+      name: 'Cardio — durées, étapes du chrono, allure, séances de départ sur mer/jeu/sam',
+      run: () => {
+        const s = FD.storage.defaultState(), T = FD.training;
+        T.addStarterCardio(s);
+        const seuil = T.workout(s, 'c-seuil'), st = T.steps(seuil);
+        T.setCardio(s, '2026-10-24', 'minutes', 45); T.setCardio(s, '2026-10-24', 'km', 9);
+        const ok = T.parseDur('1 min 30') === 90 && T.parseDur('6:00') === 360 && T.parseDur('45') === 2700 &&
+          st.length === 7 && T.plannedSeconds(seuil) === 2520 && T.pace(45, 9) === '5:00 /km' &&
+          T.workoutFor(s, '2026-10-21').id === 'c-footing-z2' && s.weekPlan.sam === 'run_hard' && T.runKm(s, '2026-10-25') === 9;
+        return { ok, title: st.length + ' étapes, ' + T.durText(T.plannedSeconds(seuil)) };
+      }
+    },
+    {
       name: 'Séances — top set puis −10 %, progression quand le haut de la fourchette est atteint',
       run: () => {
         const s = FD.storage.defaultState(), T = FD.training;

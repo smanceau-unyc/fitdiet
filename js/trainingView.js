@@ -79,8 +79,8 @@ FD.trainingView = (function () {
 
     const vol = T.volume(st, iso);
     const summary = '<section class="card"><div class="card-head"><h2>' + esc(w.name) + '</h2><div class="inline" style="gap:6px"><span class="badge">' + esc(sessionLabel(w.sessionType)) + '</span>' + (lg && lg.done ? '<span class="badge ok">Faite</span>' : '') + '</div></div>' +
-      '<p class="small muted">' + w.slots.length + ' exercices · ' + w.slots.reduce((a, s) => a + s.sets.length, 0) + ' séries' + (vol.sets ? ' · ' + vol.sets + ' séries notées · ' + U.num(vol.tonnage) + ' kg soulevés' : '') + '</p>' +
-      '<p class="small muted">Tape tes charges et tes répétitions : les champs vides montrent ce qui est proposé. Une série notée sans charge reprend la charge proposée.</p></section>';
+      '<p class="small muted">' + [(w.blocks || []).length ? 'cardio ≈ ' + T.durText(T.plannedSeconds(w)) : '', w.slots.length ? w.slots.length + ' exercices · ' + w.slots.reduce((a, s) => a + s.sets.length, 0) + ' séries' : ''].filter(Boolean).join(' · ') + (vol.sets ? ' · ' + vol.sets + ' séries notées · ' + U.num(vol.tonnage) + ' kg soulevés' : '') + '</p>' +
+      (w.slots.length ? '<p class="small muted">Tape tes charges et tes répétitions : les champs vides montrent ce qui est proposé. Une série notée sans charge reprend la charge proposée.</p>' : '') + '</section>';
 
     const groups = {};
     w.slots.forEach((s) => { if (s.group) groups[s.group] = (groups[s.group] || 0) + 1; });
@@ -94,7 +94,7 @@ FD.trainingView = (function () {
     const foot = '<section class="card tight"><div class="inline">' +
       (lg && lg.done ? '<button class="btn" data-action="tr-finish" data-v="0">Marquer comme non faite</button>' : '<button class="btn primary" data-action="tr-finish" data-v="1">Séance terminée</button>') +
       '<span class="small muted">« Terminée » coche la séance dans ton suivi et règle la cible du jour sur ' + esc(sessionLabel(w.sessionType)) + '.</span></div></section>';
-    return head + summary + '<div class="stack" style="gap:16px">' + cards + '</div>' + foot;
+    return head + summary + ((w.blocks || []).length ? cardioCard(w) : '') + (cards ? '<div class="stack" style="gap:16px">' + cards + '</div>' : '') + foot;
   }
 
   function slotCard(slot, tag) {
@@ -119,7 +119,7 @@ FD.trainingView = (function () {
           '<p class="small muted">' + esc(ex.muscles || '') + '</p>' +
           '<p class="small"><strong>' + slot.sets.length + ' séries</strong> · ' + esc(slot.sets.join(' / ')) + ' reps · repos ' + restText(slot.rest) + (slot.scheme === 'topset' ? ' · <span class="accent">top set puis −10 %</span>' : '') + '</p>' +
           (slot.note ? '<p class="small tr-note">' + esc(slot.note) + '</p>' : '') +
-          (last ? '<p class="small">Dernière fois (' + esc(U.frShort(last.iso)) + ') : ' + esc(setsLine(last.sets)) + '</p>' : '<p class="small muted">Première fois : trouve une charge qui laisse 1 à 2 répétitions en réserve.</p>') +
+          (last ? '<p class="small">Dernière fois (' + esc(U.frShort(last.iso)) + ') : ' + esc(setsLine(last.sets)) + '</p>' : (ex.load === 'pdc' ? '<p class="small muted">Première fois : note tes répétitions (ou tes secondes) série par série.</p>' : '<p class="small muted">Première fois : trouve une charge qui laisse 1 à 2 répétitions en réserve.</p>')) +
           (hint ? '<p class="small teal">' + esc(hint) + '</p>' : '') +
         '</div></div>' +
       '<div class="table-wrap"><table class="tr-sets"><thead><tr><th>Série</th><th>Objectif</th><th>' + unit + '</th><th>Reps</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
@@ -127,6 +127,126 @@ FD.trainingView = (function () {
         (ex.cues && ex.cues.length ? '<details class="tr-cues"><summary class="small">Consignes</summary><ul class="small">' + ex.cues.map((c) => '<li>' + esc(c) + '</li>').join('') + '</ul></details>' : '') +
         '<button class="btn sm ghost" data-action="tr-ex-open" data-id="' + esc(exId) + '">Historique</button></div>' +
       '</article>';
+  }
+
+  /* ---------------- Cardio : blocs, chrono guidé, carnet ---------------- */
+  function cardioCard(w) {
+    const st = S(), iso = tv.date, c = T.cardioLog(st, iso) || {};
+    const last = T.cardioHistory(st, w.id, iso, 1)[0];
+    const blocks = w.blocks.map((b) => '<div class="cd-block' + (b.mode === 'fractionne' ? ' frac' : '') + '"><div class="between"><strong>' + esc(b.label) + '</strong><span class="mob-dose">' + esc(T.blockText(b)) + '</span></div>' +
+      (b.zone ? '<span class="small teal">' + esc(b.zone) + '</span>' : '') + (b.note ? '<p class="small tr-note">' + esc(b.note) + '</p>' : '') + '</div>').join('');
+    const field = (label, f, val, mode, ph) => '<label>' + label + '<input type="text" inputmode="' + (mode || 'decimal') + '" data-change="tr-cd" data-f="' + f + '" value="' + (val !== undefined && val !== null ? esc(String(val).replace('.', ',')) : '') + '" placeholder="' + esc(ph || '') + '"></label>';
+    const p = T.pace(c.minutes, c.km);
+    const reps = w.blocks.filter((b) => b.mode === 'fractionne' && (b.reps || 1) > 1 && b.work >= 60).map((b) => {
+      const r = (c.reps && c.reps[b.id]) || [];
+      return '<div class="table-wrap"><table class="tr-sets"><thead><tr><th>' + esc(b.label) + '</th><th>Allure /km</th><th>FC fin</th></tr></thead><tbody>' +
+        Array.from({ length: b.reps }, (_, i) => '<tr><td class="muted">' + (i + 1) + '</td><td><input class="tr-in" type="text" inputmode="numeric" placeholder="4:30" data-change="tr-cd-rep" data-b="' + esc(b.id) + '" data-i="' + i + '" data-f="pace" value="' + esc((r[i] || {}).pace || '') + '"></td>' +
+          '<td><input class="tr-in" type="text" inputmode="numeric" placeholder="bpm" data-change="tr-cd-rep" data-b="' + esc(b.id) + '" data-i="' + i + '" data-f="hr" value="' + esc((r[i] || {}).hr || '') + '"></td></tr>').join('') + '</tbody></table></div>';
+    }).join('');
+    return '<section class="card"><div class="card-head"><h2>Cardio</h2><span class="badge">≈ ' + esc(T.durText(T.plannedSeconds(w))) + '</span></div>' +
+      '<div class="stack" style="gap:8px">' + blocks + '</div>' +
+      '<div class="inline"><button class="btn primary" data-action="tr-run-start">Lancer le chrono guidé</button><span class="small muted">Annonce chaque étape avec bip et vibration, l\'écran reste allumé.</span></div>' +
+      (last ? '<p class="small">Dernière fois (' + esc(U.frShort(last.iso)) + ') : ' + esc(cardioLine(last.c)) + '</p>' : '') +
+      '<div class="divider"><h3>Ma sortie</h3></div>' +
+      '<div class="cd-grid">' + field('Durée (min)', 'minutes', c.minutes, 'decimal', T.durText(T.plannedSeconds(w)).replace(/ min.*/, '')) + field('Distance (km)', 'km', c.km) +
+        field('FC moyenne', 'hrAvg', c.hrAvg, 'numeric', 'bpm') + field('FC max', 'hrMax', c.hrMax, 'numeric', 'bpm') + field('Ressenti (1-10)', 'rpe', c.rpe, 'numeric', 'RPE') + '</div>' +
+      '<p class="small" id="cd-pace">' + (p ? 'Allure moyenne : <strong>' + p + '</strong>' : '') + '</p>' + reps +
+      '<label class="small">Sensations<input type="text" data-change="tr-cd" data-f="note" value="' + esc(c.note || '') + '" placeholder="Respiration nasale tenue ? Jambes ?"></label></section>';
+  }
+  function cardioLine(c) {
+    return [c.minutes ? U.num(c.minutes) + ' min' : '', c.km ? U.num(c.km, 1) + ' km' : '', T.pace(c.minutes, c.km) || '', c.hrAvg ? 'FC ' + c.hrAvg : '', c.rpe ? 'RPE ' + c.rpe : ''].filter(Boolean).join(' · ');
+  }
+
+  /* Chrono guidé (étapes enchaînées) */
+  let run = null;
+  function runEl() {
+    let el = document.getElementById('tr-run');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'tr-run'; el.className = 'tr-run'; el.hidden = true; el.setAttribute('role', 'timer');
+      el.innerHTML = '<div class="tr-run-top"><span class="small tr-run-step"></span><span class="small muted tr-run-total"></span></div>' +
+        '<strong class="tr-run-label"></strong><span class="small teal tr-run-zone"></span><div class="tr-run-time">0:00</div>' +
+        '<div class="track"><div class="fill p tr-run-fill"></div></div><span class="small muted tr-run-next"></span>' +
+        '<div class="inline" style="justify-content:center"><button type="button" class="btn" data-r="pause">Pause</button><button type="button" class="btn" data-r="skip">Passer</button><button type="button" class="btn ghost danger" data-r="stop">Arrêter</button></div>';
+      document.body.appendChild(el);
+      el.addEventListener('click', (ev) => {
+        const b = ev.target.closest('[data-r]'); if (!b || !run) return;
+        if (b.dataset.r === 'pause') togglePause();
+        else if (b.dataset.r === 'skip') nextStep();
+        else stopRun(false);
+      });
+    }
+    return el;
+  }
+  const fmt = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(r).padStart(2, '0'); };
+  function tone(freq, dur) {
+    try { const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return; run && (run.ac = run.ac || new Ctx()); const c = run ? run.ac : new Ctx();
+      const o = c.createOscillator(), g = c.createGain(); o.frequency.value = freq; g.gain.value = 0.18; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + dur); } catch (e) { /* pas de son */ }
+  }
+  async function wake(on) {
+    try {
+      if (on && 'wakeLock' in navigator) run.lock = await navigator.wakeLock.request('screen');
+      else if (!on && run && run.lock) { run.lock.release(); run.lock = null; }
+    } catch (e) { /* non supporté */ }
+  }
+  function startRun(w) {
+    stopRun(false); stopTimer();
+    const steps = T.steps(w);
+    if (!steps.length) { A().toast('Aucun bloc à chronométrer.'); return; }
+    run = { steps, i: 0, end: Date.now() + steps[0].sec * 1000, paused: null, started: Date.now(), iso: tv.date, beeped: {}, id: setInterval(runTick, 200) };
+    tone(660, 0.15); wake(true);
+    runEl().hidden = false; runTick();
+  }
+  function nextStep() {
+    if (!run) return;
+    run.i++; run.beeped = {};
+    if (run.i >= run.steps.length) { finishRun(); return; }
+    run.end = Date.now() + run.steps[run.i].sec * 1000;
+    if (run.paused) run.paused = Date.now();
+    tone(run.steps[run.i].kind === 'rest' ? 520 : 880, 0.45);
+    if (navigator.vibrate) navigator.vibrate(run.steps[run.i].kind === 'rest' ? [300] : [200, 100, 200]);
+    runTick();
+  }
+  function togglePause() {
+    if (!run) return;
+    const b = runEl().querySelector('[data-r="pause"]');
+    if (run.paused) { run.end += Date.now() - run.paused; run.paused = null; b.textContent = 'Pause'; }
+    else { run.paused = Date.now(); b.textContent = 'Reprendre'; }
+    runTick();
+  }
+  function runTick() {
+    if (!run) return;
+    const el = runEl(), st = run.steps[run.i];
+    const now = run.paused || Date.now(), left = (run.end - now) / 1000;
+    if (left <= 0 && !run.paused) { nextStep(); return; }
+    const sl = Math.ceil(left);
+    if (sl <= 3 && sl >= 1 && !run.beeped[sl] && !run.paused) { run.beeped[sl] = true; tone(440, 0.08); }
+    const rest = run.steps.slice(run.i + 1).reduce((a, s) => a + s.sec, 0) + Math.max(0, left);
+    el.classList.toggle('rest', st.kind === 'rest'); el.classList.toggle('easy', st.kind === 'easy');
+    el.querySelector('.tr-run-step').textContent = 'Étape ' + (run.i + 1) + ' / ' + run.steps.length;
+    el.querySelector('.tr-run-total').textContent = 'Reste ' + fmt(rest);
+    el.querySelector('.tr-run-label').textContent = st.label;
+    el.querySelector('.tr-run-zone').textContent = st.zone || '';
+    el.querySelector('.tr-run-time').textContent = fmt(left);
+    el.querySelector('.tr-run-fill').style.width = Math.round((1 - left / st.sec) * 100) + '%';
+    const nx = run.steps[run.i + 1];
+    el.querySelector('.tr-run-next').textContent = nx ? 'Ensuite : ' + nx.label + ' · ' + T.durText(nx.sec) : 'Dernière étape';
+  }
+  function finishRun() {
+    const minutes = Math.round((Date.now() - run.started) / 60000);
+    const iso = run.iso, st = S();
+    tone(880, 0.25); setTimeout(() => tone(1100, 0.5), 300);
+    if (navigator.vibrate) navigator.vibrate([400, 150, 400]);
+    stopRun(false);
+    const c = T.cardioLog(st, iso);
+    if (!(c && c.minutes) && minutes > 0) { T.setCardio(st, iso, 'minutes', minutes); A().commit('Chrono terminé : ' + minutes + ' min notées. Ajoute la distance et la FC.'); }
+    else A().toast('Chrono terminé.');
+  }
+  function stopRun(ask) {
+    if (!run) return;
+    if (ask && !confirm('Arrêter le chrono ?')) return;
+    clearInterval(run.id); wake(false); run = null;
+    const el = document.getElementById('tr-run'); if (el) el.hidden = true;
   }
 
   /* ---------------- Mobilité ---------------- */
@@ -169,18 +289,22 @@ FD.trainingView = (function () {
   }
 
   /* ---------------- Programme ---------------- */
+  function blockRows(w) {
+    return (w.blocks || []).map((b) => '<div class="tr-mini-row"><span class="tr-thumb tr-noimg cd-ico" aria-hidden="true">' + (b.mode === 'fractionne' ? '⇄' : '→') + '</span><span>' + esc(b.label) + (b.zone ? ' <span class="muted">' + esc(b.zone) + '</span>' : '') + '</span><span class="small muted">' + esc(T.blockText(b)) + '</span></div>').join('');
+  }
   function vProgramme() {
     const st = S(), t = T.ensure(st);
     const week = '<section class="card"><div class="card-head"><h2>Ma semaine</h2></div>' +
       '<div class="tr-week">' + U.WEEK_ORDER.map((k) => '<label>' + U.WEEKDAY_SHORT[k] + '<select data-change="tr-week" data-day="' + k + '">' + workoutOptions(t.week[k] || '', '—') + '</select></label>').join('') + '</div>' +
-      '<p class="small muted">Associer une séance à un jour règle aussi le type de journée (cibles caloriques, glucides) dans Semaine. Les jours « — » gardent le type choisi dans Semaine (course, repos…).</p></section>';
+      '<p class="small muted">Associer une séance à un jour règle aussi le type de journée (cibles caloriques, glucides) dans Semaine. Les jours « — » gardent le type choisi dans Semaine (course, repos…).' + (T.runKm(st, U.todayISO()) ? ' Course sur 7 jours : <strong>' + U.num(T.runKm(st, U.todayISO()), 1) + ' km</strong>.' : '') + '</p></section>';
     const list = t.workouts.length ? t.workouts.map((w) => {
       const days = U.WEEK_ORDER.filter((k) => t.week[k] === w.id).map((k) => U.WEEKDAY_SHORT[k]);
       return '<section class="card tight"><div class="card-head"><h3>' + esc(w.name) + '</h3><div class="inline" style="gap:6px">' + (days.length ? '<span class="badge ok">' + esc(days.join(', ')) + '</span>' : '') + '<span class="badge">' + esc(sessionLabel(w.sessionType)) + '</span>' + (w.collection ? '<span class="badge">' + esc(w.collection) + '</span>' : '') + '</div></div>' +
-        '<div class="tr-mini">' + w.slots.map((s) => { const ex = T.exercise(st, s.ex); return '<div class="tr-mini-row">' + thumb(ex) + '<span>' + esc(ex.name) + (s.alts && s.alts.length ? ' <span class="muted">ou ' + esc(s.alts.map((a) => T.exercise(st, a).name).join(', ')) + '</span>' : '') + '</span><span class="small muted">' + esc(T.setsText(s.sets)) + '</span></div>'; }).join('') + '</div>' +
+        '<div class="tr-mini">' + blockRows(w) + w.slots.map((s) => { const ex = T.exercise(st, s.ex); return '<div class="tr-mini-row">' + thumb(ex) + '<span>' + esc(ex.name) + (s.alts && s.alts.length ? ' <span class="muted">ou ' + esc(s.alts.map((a) => T.exercise(st, a).name).join(', ')) + '</span>' : '') + '</span><span class="small muted">' + esc(T.setsText(s.sets)) + '</span></div>'; }).join('') + '</div>' +
         '<div class="inline"><button class="btn sm" data-action="tr-edit" data-id="' + esc(w.id) + '">Modifier</button><button class="btn sm ghost" data-action="tr-dup" data-id="' + esc(w.id) + '">Dupliquer</button><button class="btn sm ghost danger" data-action="tr-del" data-id="' + esc(w.id) + '">Supprimer</button></div></section>';
     }).join('') : '<section class="card dashed"><p>Aucune séance pour l\'instant.</p></section>';
-    return week + '<div class="between" style="align-items:center"><h2>Mes séances</h2><div class="inline"><label class="btn" style="flex-direction:row">Importer un programme<input type="file" accept="application/json,.json" data-change="tr-import" class="sr-only"></label><button class="btn primary" data-action="tr-new">Nouvelle séance</button></div></div>' + list;
+    return week + '<div class="between" style="align-items:center"><h2>Mes séances</h2><div class="inline"><label class="btn" style="flex-direction:row">Importer un programme<input type="file" accept="application/json,.json" data-change="tr-import" class="sr-only"></label><button class="btn primary" data-action="tr-new">Nouvelle séance muscu</button><button class="btn" data-action="tr-new-cardio">Nouvelle séance cardio</button></div></div>' +
+      (t.workouts.some((w) => /^c-/.test(w.id)) ? '' : '<section class="card tight dashed"><p class="small">Ajoute d\'un clic tes séances cardio actuelles : footing Z2 le mercredi, abdos + alactique le jeudi, seuil 3 × 6 min le samedi. Tout reste modifiable.</p><div><button class="btn" data-action="tr-starter">Ajouter mes séances cardio</button></div></section>') + list;
   }
 
   function vEdit() {
@@ -205,11 +329,27 @@ FD.trainingView = (function () {
             '<button class="btn sm ghost" data-action="tr-alt-add" data-slot="' + esc(s.id) + '">+ variante</button></div>' +
         '</div></div>';
     }).join('');
+    const blocks = (w.blocks || []).map((b, i) => '<div class="tr-edit-row"><span class="tr-thumb tr-noimg cd-ico" aria-hidden="true">' + (b.mode === 'fractionne' ? '⇄' : '→') + '</span>' +
+      '<div class="stack" style="gap:8px;flex:1;min-width:0"><div class="between" style="align-items:center"><strong>' + esc(b.label) + ' · ' + esc(T.blockText(b)) + '</strong><div class="inline" style="gap:4px">' +
+        '<button class="btn sm ghost" data-action="tr-b-up" data-b="' + esc(b.id) + '"' + (i ? '' : ' disabled') + ' aria-label="Monter">↑</button>' +
+        '<button class="btn sm ghost" data-action="tr-b-down" data-b="' + esc(b.id) + '"' + (i < w.blocks.length - 1 ? '' : ' disabled') + ' aria-label="Descendre">↓</button>' +
+        '<button class="btn sm ghost danger" data-action="tr-b-rm" data-b="' + esc(b.id) + '" aria-label="Retirer">✕</button></div></div>' +
+      '<div class="tr-edit-grid">' +
+        '<label>Nom<input type="text" value="' + esc(b.label) + '" data-change="tr-b" data-b="' + esc(b.id) + '" data-f="label"></label>' +
+        '<label>Type<select data-change="tr-b" data-b="' + esc(b.id) + '" data-f="mode"><option value="continu"' + (b.mode !== 'fractionne' ? ' selected' : '') + '>Continu</option><option value="fractionne"' + (b.mode === 'fractionne' ? ' selected' : '') + '>Fractionné</option></select></label>' +
+        '<label>' + (b.mode === 'fractionne' ? 'Effort' : 'Durée') + '<input type="text" value="' + esc(T.durText(b.work)) + '" data-change="tr-b" data-b="' + esc(b.id) + '" data-f="work" placeholder="45 min, 6:00, 30 s"></label>' +
+        (b.mode === 'fractionne' ? '<label>Répétitions<input type="number" min="1" max="50" value="' + (b.reps || 1) + '" data-change="tr-b" data-b="' + esc(b.id) + '" data-f="reps"></label>' : '<span></span>') +
+      '</div>' +
+      (b.mode === 'fractionne' ? '<label class="small">Récupération entre les répétitions<input type="text" value="' + esc(b.rest ? T.durText(b.rest) : '') + '" data-change="tr-b" data-b="' + esc(b.id) + '" data-f="rest" placeholder="2 min, 90 s"></label>' : '') +
+      '<label class="small">Zone / cible<input type="text" value="' + esc(b.zone || '') + '" data-change="tr-b" data-b="' + esc(b.id) + '" data-f="zone" placeholder="Z2 · < 145 bpm, seuil, allure 4:30…"></label>' +
+      '<label class="small">Note<input type="text" value="' + esc(b.note || '') + '" data-change="tr-b" data-b="' + esc(b.id) + '" data-f="note"></label></div></div>').join('');
+    const cardioSection = '<section class="card"><div class="card-head"><h2>Cardio et intervalles</h2><div class="inline"><button class="btn sm" data-action="tr-b-add" data-m="continu">+ Bloc continu</button><button class="btn sm" data-action="tr-b-add" data-m="fractionne">+ Bloc fractionné</button></div></div>' +
+      (blocks ? '<div class="stack" style="gap:0">' + blocks + '</div>' : '<p class="small muted">Footing, échauffement, fractions, sprints… Ils passent avant les exercices et se suivent avec le chrono guidé.</p>') + '</section>';
     const target = tv.addTarget ? w.slots.find((s) => s.id === tv.addTarget) : null;
     return '<section class="card"><div class="card-head"><h2>Modifier la séance</h2><button class="btn sm primary" data-action="tr-edit-done">Terminé</button></div>' +
       '<div class="grid-2"><label>Nom<input type="text" value="' + esc(w.name) + '" data-change="tr-w" data-f="name"></label>' +
       '<label>Type de journée (cibles)<select data-change="tr-w" data-f="sessionType">' + typeOpts + '</select></label></div>' +
-      '<div class="stack" style="gap:14px">' + (slots || '<p class="small muted">Ajoute des exercices ci-dessous.</p>') + '</div></section>' +
+      '<div class="stack" style="gap:14px">' + (slots || '<p class="small muted">Ajoute des exercices ci-dessous.</p>') + '</div></section>' + cardioSection +
       '<section class="card" id="tr-add"><div class="card-head"><h2>' + (target ? 'Variante pour « ' + esc(T.exercise(st, target.ex).name) + ' »' : 'Ajouter un exercice') + '</h2>' + (target ? '<button class="btn sm ghost" data-action="tr-alt-cancel">Annuler</button>' : '') + '</div>' +
       '<input type="search" placeholder="Rechercher : squat, épaules, tractions…" value="' + esc(tv.addQuery) + '" data-input="tr-addq" aria-label="Rechercher un exercice">' +
       '<div class="tr-grid" id="tr-add-results">' + addResults() + '</div></section>';
@@ -260,7 +400,7 @@ FD.trainingView = (function () {
     const w = T.workoutFor(st, iso), lg = T.log(st, iso);
     if (!w) return '<section class="card" aria-label="Séance du jour"><div class="card-head"><h2>Séance</h2><span class="badge">Pas de muscu</span></div><p class="small muted">Aucune séance de musculation prévue aujourd\'hui.</p><a class="btn" href="#/seances">Voir le programme</a>' + mobilityLine() + '</section>';
     return '<section class="card" aria-label="Séance du jour"><div class="card-head"><h2>' + esc(w.name) + '</h2>' + (lg && lg.done ? '<span class="badge ok">Faite</span>' : '<span class="badge">Aujourd\'hui</span>') + '</div>' +
-      '<div class="tr-mini">' + w.slots.slice(0, 6).map((s) => { const ex = T.exercise(st, s.ex); return '<div class="tr-mini-row">' + thumb(ex) + '<span>' + esc(ex.name) + '</span><span class="small muted">' + esc(T.setsText(s.sets)) + '</span></div>'; }).join('') + '</div>' +
+      '<div class="tr-mini">' + blockRows(w) + w.slots.slice(0, 6).map((s) => { const ex = T.exercise(st, s.ex); return '<div class="tr-mini-row">' + thumb(ex) + '<span>' + esc(ex.name) + '</span><span class="small muted">' + esc(T.setsText(s.sets)) + '</span></div>'; }).join('') + '</div>' +
       '<a class="btn primary" href="#/seances" data-action="tr-goto-today">Ouvrir la séance</a>' + mobilityLine() + '</section>';
   }
 
@@ -351,6 +491,13 @@ FD.trainingView = (function () {
         case 'tr-next': tv.date = U.addDays(tv.date, 1); A().render(); break;
         case 'tr-today': tv.date = U.todayISO(); A().render(); break;
         case 'tr-goto-today': tv.tab = 'jour'; tv.date = U.todayISO(); break;
+        case 'tr-run-start': { const w = T.workoutFor(st, tv.date); if (w) startRun(w); break; }
+        case 'tr-b-add': T.addBlock(st, tv.editId, el.dataset.m); A().commit('Bloc ajouté.'); break;
+        case 'tr-b-up': T.moveBlock(st, tv.editId, el.dataset.b, -1); A().commit(); break;
+        case 'tr-b-down': T.moveBlock(st, tv.editId, el.dataset.b, 1); A().commit(); break;
+        case 'tr-b-rm': T.removeBlock(st, tv.editId, el.dataset.b); A().commit('Bloc retiré.'); break;
+        case 'tr-starter': { if (T.workouts(st).some((w) => /^c-/.test(w.id)) && !confirm('Remplacer tes séances cardio de départ par les versions d\'origine ?')) break; const n = T.addStarterCardio(st); A().commit(n + ' séances ajoutées : mercredi footing Z2, jeudi abdos + alactique, samedi seuil.'); break; }
+        case 'tr-new-cardio': { const w = T.newWorkout(st, 'Nouvelle séance cardio'); w.sessionType = 'run_easy'; T.addBlock(st, w.id, 'continu'); tv.tab = 'programme'; tv.editId = w.id; A().commit('Séance cardio créée.'); window.scrollTo({ top: 0 }); break; }
         case 'tr-goto-mob': tv.tab = 'mobilite'; tv.date = U.todayISO(); break;
         case 'tr-rest': startTimer(+el.dataset.s, el.dataset.l || ''); break;
         case 'tr-finish': T.finish(st, tv.date, el.dataset.v === '1'); A().commit(el.dataset.v === '1' ? 'Séance enregistrée. Bien joué.' : 'Séance marquée non faite.'); if (el.dataset.v === '1') stopTimer(); break;
@@ -419,6 +566,26 @@ FD.trainingView = (function () {
           break;
         }
         case 'tr-mob-day': FD.mobility.chooseForDate(st, tv.date, el.value); A().commit(); break;
+        case 'tr-cd': {
+          const f = el.dataset.f;
+          const v = f === 'note' ? el.value.trim() : U.parseNum(el.value);
+          T.setCardio(st, tv.date, f, f === 'note' ? v : (v === null ? null : (f === 'hrAvg' || f === 'hrMax' || f === 'rpe' ? Math.round(v) : v)));
+          A().save();
+          const c = T.cardioLog(st, tv.date) || {}, p = T.pace(c.minutes, c.km), out = document.getElementById('cd-pace');
+          if (out) out.innerHTML = p ? 'Allure moyenne : <strong>' + p + '</strong>' : '';
+          break;
+        }
+        case 'tr-cd-rep': T.setRep(st, tv.date, el.dataset.b, +el.dataset.i, el.dataset.f, el.value.trim()); A().save(); break;
+        case 'tr-b': {
+          const w = T.workout(st, tv.editId), b = w && (w.blocks || []).find((x) => x.id === el.dataset.b); if (!b) break;
+          const f = el.dataset.f;
+          if (f === 'work' || f === 'rest') { const sec = T.parseDur(el.value); if (sec > 0 || f === 'rest') b[f] = sec; }
+          else if (f === 'reps') b.reps = Math.max(1, parseInt(el.value, 10) || 1);
+          else b[f] = el.value.trim();
+          if (f === 'mode' && b.mode === 'fractionne' && !(b.reps > 1)) { b.reps = 6; b.rest = b.rest || 60; if (b.work > 600) b.work = 60; }
+          A().commit();
+          break;
+        }
         case 'tr-mob-week': FD.mobility.setWeek(st, el.dataset.day, el.value); A().commit('Semaine mobilité mise à jour.'); break;
 
         default: break;

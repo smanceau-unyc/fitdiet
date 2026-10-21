@@ -363,3 +363,17 @@ label.inline { flex-direction: row; align-items: center; }
 .mob-item details summary { cursor: pointer; color: var(--accent-2); }
 .mob-item details p { margin-top: 6px; }
 @media (max-width: 640px) { .mob-item { flex-direction: column; } .mob-item > img { width: 100%; } }
+/* ---------- Cardio ---------- */
+.cd-block { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-left: 3px solid var(--accent-2); background: var(--surface-2); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.cd-block.frac { border-left-color: var(--accent); }
+.cd-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 760px) { .cd-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cd-ico { display: grid; place-items: center; font-size: 20px; color: var(--accent-2); }
+.tr-run { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; z-index: 45; width: min(440px, calc(100% - 24px)); display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; border-radius: var(--radius); background: var(--surface-2); border: 2px solid var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,.45); text-align: center; }
+.tr-run.rest { border-color: var(--accent-2); }
+.tr-run.easy { border-color: var(--line-strong); }
+.tr-run-top { display: flex; justify-content: space-between; }
+.tr-run-label { font-family: var(--font-display); font-size: 24px; text-transform: uppercase; letter-spacing: .03em; }
+.tr-run-time { font-family: var(--font-display); font-size: 64px; line-height: 1; color: var(--accent); }
+.tr-run.rest .tr-run-time { color: var(--accent-2); }
+@media (max-width: 860px) { .tr-run { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); } }

@@ -1,4 +1,4 @@
-# FitDiet Coach — version 4.0
+# FitDiet Coach — version 4.1
 
 Application de suivi nutritionnel sportif en HTML/CSS/JavaScript vanilla.
 Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun serveur.
@@ -6,6 +6,7 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 ## Contenu de la V1
 
 - **Séances** (V4.0) : onglet dédié. Semaine type de musculation (une séance par jour, qui règle aussi le type de journée nutritionnel), carnet de charges série par série, méthode « top set puis −10 % » calculée automatiquement, variantes au choix (squat ou soulevé de terre…), dernière performance et conseil de progression (+1 kg sous 20 kg, +2,5 kg au-delà), minuteur de repos (vibration et bip), séance terminée cochée dans le suivi. Éditeur de séances (exercices, séries, repos, supersets, notes) et bibliothèque de 48 exercices avec deux photos chacun (départ / arrivée, animées), consignes, historique et 1RM estimé. Photos : Free Exercise DB, domaine public (Unlicense).
+- **Cardio et abdos** (V4.1) : une séance peut contenir des blocs continus (footing, échauffement) et fractionnés (seuil, sprints) en plus des exercices. Chrono guidé qui enchaîne les étapes (bips, vibration, écran maintenu allumé), carnet de sortie (durée, distance, allure calculée, FC moyenne et max, ressenti, allure et FC par fraction), dernière sortie rappelée, kilomètres sur 7 jours. Séances de départ en un clic : footing Z2 (mer), abdos + alactique (jeu), seuil 3 × 6 min (sam). 13 exercices d'abdos et d'explosivité ajoutés à la bibliothèque.
 - **Mobilité** (V4.0) : programme hebdomadaire foam roller + élastique (routine de base de 10 min + blocs ciblés, séances longues), illustration de chaque exercice, dosage, consignes, cases « fait », minuteur pour les maintiens, semaine modifiable, points importants. Résumé sur le tableau de bord.
 - **Menus d'un livre** (V4.0) : un fichier de recettes peut contenir des journées types (`menus`) et des séances (`workouts`, `week`), importés en une fois ; Plan → « Menus du livre » ajoute une journée entière au journal.
 - **Profil** : Mifflin-St Jeor (formule affichée), dépense totale en fourchette, plancher/plafond calorique, protéines, fibres, préférences, équipements, situations médicales.
@@ -41,7 +42,7 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Lipides quotidiens** (V3.4) : objectif de lipides en g/jour dans le profil (65 g par défaut), appliqué à toutes les séances ; les glucides prennent le reste. Champ vide = lipides réglés séance par séance.
 - **Fractions** (V3.3) : « 1/2 », « ½ », « 1 1/2 » acceptés, boutons ¼ ½ ¾ 1 1½ 2, affichage « ½ × avocat ».
 - **Prix** (V3) : prix indicatifs modifiables, coût estimé par jour, par plan et pour la liste de courses, budget hebdomadaire du profil pris en compte par le générateur (sans sacrifier les protéines).
-- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 29 scénarios.
+- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 30 scénarios.
 
 ## Architecture
 

@@ -63,6 +63,7 @@ FD.training = (function () {
     const w = JSON.parse(JSON.stringify(src));
     w.id = 'w-' + U.uid(); w.name = src.name + ' (copie)'; delete w.collection;
     w.slots.forEach((s) => { s.id = 's-' + U.uid(); });
+    (w.blocks || []).forEach((b) => { b.id = 'k-' + U.uid(); });
     workouts(state).push(w);
     return w;
   }
@@ -272,10 +273,142 @@ FD.training = (function () {
     return { workouts: data.workouts.length, days };
   }
 
+  /* ---------------- Blocs cardio / intervalles ----------------
+   * workout.blocks = [{ id, label, mode: 'continu' | 'fractionne', work: s, reps, rest: s, zone, note }]
+   * Carnet : log.cardio = { minutes, km, hrAvg, hrMax, rpe, note, reps: { blockId: [{ pace, hr }] } }
+   */
+  /** « 10 min », « 6:00 », « 1 min 30 », « 90 s », « 45 » (minutes si > 0 sans unité… sauf petits nombres) → secondes */
+  function parseDur(txt) {
+    const t = String(txt || '').trim().toLowerCase().replace(',', '.');
+    if (!t) return 0;
+    let m = t.match(/^(\d+):(\d{1,2})$/);
+    if (m) return +m[1] * 60 + +m[2];
+    m = t.match(/^(\d+(?:\.\d+)?)\s*h(?:\s*(\d+))?$/);
+    if (m) return Math.round(+m[1] * 3600 + (m[2] ? +m[2] * 60 : 0));
+    m = t.match(/^(\d+(?:\.\d+)?)\s*(?:min|mn|m)(?:\s*(\d+)\s*(?:s)?)?$/);
+    if (m) return Math.round(+m[1] * 60 + (m[2] ? +m[2] : 0));
+    m = t.match(/^(\d+)\s*(?:s|sec|")$/);
+    if (m) return +m[1];
+    m = t.match(/^(\d+(?:\.\d+)?)$/);
+    return m ? Math.round(+m[1] * 60) : 0;   // nombre seul = minutes
+  }
+  function durText(sec) {
+    sec = Math.round(+sec || 0);
+    if (sec < 60) return sec + ' s';
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), r = sec % 60;
+    if (h) return h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : '');
+    return m + ' min' + (r ? ' ' + String(r).padStart(2, '0') : '');
+  }
+  function blockText(b) {
+    if (b.mode === 'fractionne') return (b.reps || 1) + ' × ' + durText(b.work) + (b.rest ? ' · récup ' + durText(b.rest) : '');
+    return durText(b.work);
+  }
+  function addBlock(state, wid, mode) {
+    const w = workout(state, wid); if (!w) return null;
+    w.blocks = w.blocks || [];
+    const b = mode === 'fractionne'
+      ? { id: 'k-' + U.uid(), label: 'Fractionné', mode: 'fractionne', work: 60, reps: 6, rest: 60, zone: '', note: '' }
+      : { id: 'k-' + U.uid(), label: 'Footing', mode: 'continu', work: 1800, reps: 1, rest: 0, zone: 'Z2', note: '' };
+    w.blocks.push(b);
+    return b;
+  }
+  function moveBlock(state, wid, id, dir) {
+    const w = workout(state, wid); if (!w || !w.blocks) return;
+    const i = w.blocks.findIndex((b) => b.id === id), j = i + dir;
+    if (i < 0 || j < 0 || j >= w.blocks.length) return;
+    const t = w.blocks[i]; w.blocks[i] = w.blocks[j]; w.blocks[j] = t;
+  }
+  function removeBlock(state, wid, id) { const w = workout(state, wid); if (w && w.blocks) w.blocks = w.blocks.filter((b) => b.id !== id); }
+
+  /** Étapes du chrono guidé : chaque bloc continu = 1 étape ; fractionné = effort / récup alternés (pas de récup après la dernière). */
+  function steps(w) {
+    const out = [];
+    (w && w.blocks || []).forEach((b) => {
+      if (b.mode === 'fractionne') {
+        const n = Math.max(1, b.reps || 1);
+        for (let i = 0; i < n; i++) {
+          out.push({ kind: 'work', label: b.label + ' ' + (i + 1) + '/' + n, sec: b.work, zone: b.zone, blockId: b.id, rep: i });
+          if (b.rest && i < n - 1) out.push({ kind: 'rest', label: 'Récup', sec: b.rest, zone: '', blockId: b.id, rep: i });
+        }
+      } else if (b.work > 0) out.push({ kind: b.label && /chauff|retour|rac/i.test(b.label) ? 'easy' : 'work', label: b.label, sec: b.work, zone: b.zone, blockId: b.id, rep: 0 });
+    });
+    return out;
+  }
+  function plannedSeconds(w) { return steps(w).reduce((a, s) => a + s.sec, 0); }
+
+  function cardioLog(state, iso) { const lg = log(state, iso); return lg && lg.cardio ? lg.cardio : null; }
+  function setCardio(state, iso, field, value) {
+    const t = ensure(state);
+    const lg = t.logs[iso] = t.logs[iso] || { entries: {} };
+    const c = lg.cardio = lg.cardio || {};
+    if (value === null || value === '' || (typeof value === 'number' && isNaN(value))) delete c[field]; else c[field] = value;
+  }
+  function setRep(state, iso, blockId, i, field, value) {
+    const t = ensure(state);
+    const lg = t.logs[iso] = t.logs[iso] || { entries: {} };
+    const c = lg.cardio = lg.cardio || {};
+    const r = (c.reps = c.reps || {})[blockId] = c.reps[blockId] || [];
+    while (r.length <= i) r.push({});
+    if (value === null || value === '') delete r[i][field]; else r[i][field] = value;
+  }
+  /** Allure en min/km à partir d'une durée (min) et d'une distance (km). */
+  function pace(minutes, km) {
+    if (!(minutes > 0 && km > 0)) return null;
+    const s = Math.round(minutes * 60 / km);
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' /km';
+  }
+  /** Séances cardio passées de cette séance (même identifiant), les plus récentes d'abord. */
+  function cardioHistory(state, wid, beforeIso, limit) {
+    const logs = ensure(state).logs, out = [];
+    Object.keys(logs).sort().reverse().forEach((d) => {
+      if (beforeIso && d >= beforeIso) return;
+      const lg = logs[d], c = lg.cardio;
+      if (!c || !(c.minutes || c.km || c.hrAvg)) return;
+      const w = workoutFor(state, d);
+      if (wid && (!w || w.id !== wid)) return;
+      out.push({ iso: d, c, name: w ? w.name : '' });
+    });
+    return out.slice(0, limit || 20);
+  }
+  /** Kilomètres courus sur les 7 jours se terminant à iso. */
+  function runKm(state, iso) {
+    let km = 0;
+    for (let i = 0; i < 7; i++) { const c = cardioLog(state, U.addDays(iso, -i)); if (c && c.km > 0) km += c.km; }
+    return Math.round(km * 10) / 10;
+  }
+
+  /** Séances cardio et abdos de départ (semaine actuelle), entièrement modifiables. */
+  function starterCardio() {
+    return [
+      { id: 'c-footing-z2', name: 'Footing Z2', sessionType: 'run_easy', slots: [], blocks: [
+        { id: 'k-z2', label: 'Footing', mode: 'continu', work: 2700, reps: 1, rest: 0, zone: 'Z2 · < 145 bpm · respiration nasale', note: 'Entre 30 et 60 min selon la forme : si la respiration nasale ne tient plus, ralentis.' }] },
+      { id: 'c-seuil', name: 'Run seuil 3 × 6 min', sessionType: 'run_hard', slots: [], blocks: [
+        { id: 'k-ech', label: 'Échauffement', mode: 'continu', work: 600, reps: 1, rest: 0, zone: 'Z1-Z2', note: '' },
+        { id: 'k-seuil', label: 'Seuil', mode: 'fractionne', work: 360, reps: 3, rest: 120, zone: 'Seuil : « confortablement dur », parler par mots isolés', note: 'Récup en trottinant. Les 3 fractions à la même allure.' },
+        { id: 'k-rac', label: 'Retour au calme', mode: 'continu', work: 600, reps: 1, rest: 0, zone: 'Z1', note: '' }] },
+      { id: 'c-abdos-alactique', name: 'Abdos + alactique', sessionType: 'hybrid', blocks: [
+        { id: 'k-sprint', label: 'Sprint', mode: 'fractionne', work: 8, reps: 8, rest: 90, zone: 'Effort maximal', note: 'En côte ou sur le plat, après un échauffement de 10 min. Récup complète en marchant : si la vitesse baisse nettement, arrête.' }],
+        slots: [
+          { id: 'c-s1', ex: 'box-jump', alts: ['squat-saute', 'kb-swing'], scheme: 'straight', sets: ['3', '3', '3', '3'], rest: 60, group: '', note: 'Puissance : qualité maximale, récupération complète.' },
+          { id: 'c-s2', ex: 'releve-jambes', alts: ['crunch-velo'], scheme: 'straight', sets: ['8-12', '8-12', '8-12'], rest: 60, group: '', note: '' },
+          { id: 'c-s3', ex: 'roue-abdos', alts: ['dead-bug'], scheme: 'straight', sets: ['6-10', '6-10', '6-10'], rest: 60, group: '', note: '' },
+          { id: 'c-s4', ex: 'pallof-press', alts: ['russian-twist'], scheme: 'straight', sets: ['10', '10', '10'], rest: 45, group: 'A', note: 'Par côté.' },
+          { id: 'c-s5', ex: 'gainage-lateral', alts: ['gainage'], scheme: 'straight', sets: ['30-45 s', '30-45 s', '30-45 s'], rest: 45, group: 'A', note: 'Note la durée tenue (en secondes) dans la colonne Reps.' }] }
+    ];
+  }
+  function addStarterCardio(state) {
+    const t = ensure(state), list = starterCardio();
+    const ids = new Set(list.map((w) => w.id));
+    t.workouts = t.workouts.filter((w) => !ids.has(w.id)).concat(list);
+    setDay(state, 'mer', 'c-footing-z2'); setDay(state, 'jeu', 'c-abdos-alactique'); setDay(state, 'sam', 'c-seuil');
+    return list.length;
+  }
+
   return {
     DROP, ensure, library, exercise, imageSrc, searchExercises, addCustomExercise,
     workouts, workout, newWorkout, duplicate, removeWorkout, addSlot, moveSlot, removeSlot, parseSets, setsText,
     setDay, plannedFor, workoutFor, chooseForDate, log, entry, currentEx, setValue, chooseVariant,
-    lastPerf, history, e1rm, bestE1rm, range, suggestions, hint, volume, finish, importWorkouts
+    lastPerf, history, e1rm, bestE1rm, range, suggestions, hint, volume, finish, importWorkouts,
+    parseDur, durText, blockText, addBlock, moveBlock, removeBlock, steps, plannedSeconds, cardioLog, setCardio, setRep, pace, cardioHistory, runKm, starterCardio, addStarterCardio
   };
 })();
