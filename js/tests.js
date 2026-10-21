@@ -102,6 +102,34 @@ FD.tests = (function () {
   /* Tests de la livraison 2 (recettes, plan, substitutions) — n'utilisent pas le moteur coach. */
   const EXTRA = [
     {
+      name: 'Séances — top set puis −10 %, progression quand le haut de la fourchette est atteint',
+      run: () => {
+        const s = FD.storage.defaultState(), T = FD.training;
+        const w = T.newWorkout(s, 'Test'); w.sessionType = 'upper';
+        const slot = T.addSlot(s, w.id, 'dev-couche'); slot.scheme = 'topset'; slot.sets = ['4-6', '6-8', '8-10'];
+        T.setDay(s, 'lun', w.id);
+        const d1 = '2026-10-19', d2 = '2026-10-26';
+        T.setValue(s, d1, slot, 0, 'kg', 80); T.setValue(s, d1, slot, 0, 'reps', 6);
+        const sug1 = T.suggestions(s, d1, slot);
+        const next = T.suggestions(s, d2, slot);
+        const ok = T.workoutFor(s, d1).id === w.id && s.weekPlan.lun === 'upper' && sug1[1] === 72 && sug1[2] === 65 && next[0] === 82.5;
+        return { ok, title: 'suggestions ' + sug1.join('/') + ' → ' + next.join('/') };
+      }
+    },
+    {
+      name: 'Mobilité — séance du jour, base incluse, minuteur et progression',
+      run: () => {
+        const s = FD.storage.defaultState(), Mo = FD.mobility;
+        const lun = Mo.sessionFor(s, '2026-10-19'), mer = Mo.sessionFor(s, '2026-10-21');
+        const items = Mo.items(lun);
+        Mo.toggle(s, '2026-10-19', items[0].key, true);
+        const p = Mo.progress(s, '2026-10-19');
+        const ok = lun.id === 'base-hanches' && items.length === 11 && mer.id === 'longue-hanches' && p.done === 1 && p.total === 11 &&
+          Mo.seconds('1 min 30 / jambe') === 90 && Mo.seconds('2 × 45 s') === 45 && Mo.seconds('2 × 10') === null;
+        return { ok, title: lun.name + ' : ' + items.length + ' exercices' };
+      }
+    },
+    {
       name: 'Recette — macros = somme exacte des ingrédients ÷ portions',
       run: () => {
         const s = FD.storage.defaultState();
@@ -273,7 +301,7 @@ FD.tests = (function () {
   ];
 
   function run() {
-    const extra = (FD.recipes && FD.planner && FD.shopping && FD.prices && FD.photos) ? EXTRA.map((c) => {
+    const extra = (FD.recipes && FD.planner && FD.shopping && FD.prices && FD.photos && FD.training && FD.mobility) ? EXTRA.map((c) => {
       try { const r = c.run(); return { name: c.name, ok: r.ok, code: 'calcul', title: r.title, recommend: '' }; }
       catch (e) { return { name: c.name, ok: false, err: e.message }; }
     }) : [];

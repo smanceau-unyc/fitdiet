@@ -1,10 +1,13 @@
-# FitDiet Coach — version 3.14
+# FitDiet Coach — version 4.0
 
 Application de suivi nutritionnel sportif en HTML/CSS/JavaScript vanilla.
 Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun serveur.
 
 ## Contenu de la V1
 
+- **Séances** (V4.0) : onglet dédié. Semaine type de musculation (une séance par jour, qui règle aussi le type de journée nutritionnel), carnet de charges série par série, méthode « top set puis −10 % » calculée automatiquement, variantes au choix (squat ou soulevé de terre…), dernière performance et conseil de progression (+1 kg sous 20 kg, +2,5 kg au-delà), minuteur de repos (vibration et bip), séance terminée cochée dans le suivi. Éditeur de séances (exercices, séries, repos, supersets, notes) et bibliothèque de 48 exercices avec deux photos chacun (départ / arrivée, animées), consignes, historique et 1RM estimé. Photos : Free Exercise DB, domaine public (Unlicense).
+- **Mobilité** (V4.0) : programme hebdomadaire foam roller + élastique (routine de base de 10 min + blocs ciblés, séances longues), illustration de chaque exercice, dosage, consignes, cases « fait », minuteur pour les maintiens, semaine modifiable, points importants. Résumé sur le tableau de bord.
+- **Menus d'un livre** (V4.0) : un fichier de recettes peut contenir des journées types (`menus`) et des séances (`workouts`, `week`), importés en une fois ; Plan → « Menus du livre » ajoute une journée entière au journal.
 - **Profil** : Mifflin-St Jeor (formule affichée), dépense totale en fourchette, plancher/plafond calorique, protéines, fibres, préférences, équipements, situations médicales.
 - **Semaine modulable** : 9 types de séance (force haut/bas, full body, hybride, course intense/longue/facile, récup, repos) avec calories et lipides éditables ; glucides = calories restantes. Semaine type + séance réelle par jour. Budget calorique hebdomadaire.
 - **Journal** : recherche avec distinction obligatoire cru/cuit, unités g/kg/ml/unité/portion, repas types en un clic, saisie libre (restaurant, dessert, alcool), modification, suppression, substitution avec macros recalculées, recherche Open Food Facts (nom, marque, code-barres).
@@ -38,7 +41,7 @@ Ouvre simplement `index.html` dans un navigateur : aucune installation, aucun se
 - **Lipides quotidiens** (V3.4) : objectif de lipides en g/jour dans le profil (65 g par défaut), appliqué à toutes les séances ; les glucides prennent le reste. Champ vide = lipides réglés séance par séance.
 - **Fractions** (V3.3) : « 1/2 », « ½ », « 1 1/2 » acceptés, boutons ¼ ½ ¾ 1 1½ 2, affichage « ½ × avocat ».
 - **Prix** (V3) : prix indicatifs modifiables, coût estimé par jour, par plan et pour la liste de courses, budget hebdomadaire du profil pris en compte par le générateur (sans sacrifier les protéines).
-- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 27 scénarios.
+- **Tests** : `tests.html` (navigateur) ou `node js/run-tests-node.js` — 29 scénarios.
 
 ## Architecture
 
@@ -72,6 +75,11 @@ data/ciqual-links.js  correspondances aliments de base → codes Ciqual
 data/recipes.js   recettes et groupes de substitution
 js/charts.js      graphiques canvas
 js/api.js         Open Food Facts, point d'extension IA
+js/training.js    séances : programme, semaine, carnet, suggestions de charge
+js/trainingView.js interface Séances + Mobilité, minuteur
+js/mobility.js    programme mobilité
+data/exercises.js bibliothèque d'exercices (photos dans img/exercices)
+data/mobility.js  programme mobilité (illustrations dans img/mobilite)
 js/app.js         interface et routeur
 js/tests.js       scénarios de test
 ```

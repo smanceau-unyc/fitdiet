@@ -1,0 +1,123 @@
+/**
+ * data/exercises.js — Bibliothèque d'exercices.
+ *
+ * Photos : Free Exercise DB (github.com/yuhonas/free-exercise-db), domaine public (Unlicense).
+ * Deux photos par exercice dans img/exercices/<id>-0.jpg (départ) et <id>-1.jpg (arrivée) ;
+ * l'app les alterne pour montrer le mouvement. Noms, muscles et consignes rédigés pour l'app.
+ *
+ * group : pecs | dos | epaules | bras | jambes | abdos | complet
+ * load  : 'charge' (kg sur la barre / haltères / machine) | 'lest' (kg ajoutés au poids du corps) | 'pdc' (poids du corps)
+ */
+window.FD_EXERCISES = [
+  // --- Pectoraux ---
+  { id: 'dev-incline-barre', name: 'Développé incliné (barre)', group: 'pecs', load: 'charge', muscles: 'Haut des pectoraux, épaules avant, triceps',
+    cues: ['Banc à 30°, omoplates serrées et basses.', 'Descends la barre sous les clavicules, coudes à 45° du buste.', 'Pousse vers le haut et légèrement en arrière.'] },
+  { id: 'dev-incline-halteres', name: 'Développé incliné (haltères)', group: 'pecs', load: 'charge', muscles: 'Haut des pectoraux, épaules avant, triceps',
+    cues: ['Banc à 30°, haltères au niveau de la poitrine.', 'Descends jusqu\'à l\'étirement des pecs sans décoller les épaules.', 'Rapproche les haltères en haut sans les cogner.'] },
+  { id: 'dev-couche', name: 'Développé couché (barre)', group: 'pecs', load: 'charge', muscles: 'Pectoraux, épaules avant, triceps',
+    cues: ['Pieds ancrés, léger cambré, omoplates serrées.', 'Barre au bas des pecs, avant-bras verticaux.', 'Pousse en gardant les fesses sur le banc.'] },
+  { id: 'dev-couche-halteres', name: 'Développé couché (haltères)', group: 'pecs', load: 'charge', muscles: 'Pectoraux, épaules avant, triceps',
+    cues: ['Omoplates serrées, haltères au-dessus des épaules.', 'Descends lentement, coudes à 45°.', 'Pousse en arc vers le centre.'] },
+  { id: 'dips', name: 'Dips (pectoraux)', group: 'pecs', load: 'lest', muscles: 'Bas des pectoraux, triceps, épaules avant',
+    cues: ['Buste légèrement penché en avant.', 'Descends jusqu\'à ce que les épaules passent sous les coudes, sans douleur.', 'Remonte sans verrouiller brutalement.'] },
+  { id: 'pompes', name: 'Pompes', group: 'pecs', load: 'pdc', muscles: 'Pectoraux, triceps, gainage',
+    cues: ['Corps gainé en planche, mains sous les épaules.', 'Poitrine près du sol, coudes à 45°.', 'Repousse le sol sans creuser le dos.'] },
+
+  // --- Dos ---
+  { id: 'tractions-lestees', name: 'Tractions lestées', group: 'dos', load: 'lest', muscles: 'Grand dorsal, biceps, arrière d\'épaule',
+    cues: ['Lest à la ceinture ou haltère entre les pieds.', 'Pars bras tendus, épaules engagées vers le bas.', 'Monte le menton au-dessus de la barre, redescends contrôlé.'] },
+  { id: 'tractions', name: 'Tractions (pronation)', group: 'dos', load: 'pdc', muscles: 'Grand dorsal, biceps, trapèzes',
+    cues: ['Mains un peu plus larges que les épaules.', 'Tire les coudes vers les hanches.', 'Descends jusqu\'aux bras tendus.'] },
+  { id: 'tractions-neutres', name: 'Tractions prise neutre', group: 'dos', load: 'lest', muscles: 'Biceps, brachial, grand dorsal',
+    cues: ['Paumes face à face (poignée en V ou barres parallèles).', 'Version « bras » : tire avec les bras plutôt qu\'avec le dos.', 'Contrôle la descente.'] },
+  { id: 'tractions-supination', name: 'Tractions supination (chin-up)', group: 'dos', load: 'lest', muscles: 'Biceps, grand dorsal',
+    cues: ['Paumes vers toi, écartement largeur d\'épaules.', 'Monte la poitrine vers la barre.', 'Descente lente et complète.'] },
+  { id: 'tirage-vertical', name: 'Tirage vertical (poulie haute)', group: 'dos', load: 'charge', muscles: 'Grand dorsal, biceps',
+    cues: ['Buste légèrement incliné en arrière.', 'Amène la barre en haut de la poitrine.', 'Remonte en laissant les dorsaux s\'étirer.'] },
+  { id: 'rowing-barre', name: 'Rowing barre', group: 'dos', load: 'charge', muscles: 'Dos épais, rhomboïdes, biceps',
+    cues: ['Buste penché à 45°, dos plat.', 'Tire la barre vers le nombril.', 'Serre les omoplates en haut.'] },
+  { id: 'rowing-haltere', name: 'Rowing haltère unilatéral', group: 'dos', load: 'charge', muscles: 'Grand dorsal, rhomboïdes',
+    cues: ['Main et genou en appui sur le banc.', 'Tire l\'haltère vers la hanche.', 'Étire en bas sans tourner le buste.'] },
+  { id: 'tirage-horizontal', name: 'Tirage horizontal (poulie basse)', group: 'dos', load: 'charge', muscles: 'Milieu du dos, grand dorsal',
+    cues: ['Buste droit, poitrine sortie.', 'Tire la poignée vers le ventre.', 'Laisse les épaules avancer en fin de retour.'] },
+  { id: 'face-pull', name: 'Face pull', group: 'epaules', load: 'charge', muscles: 'Arrière d\'épaule, coiffe des rotateurs',
+    cues: ['Corde à hauteur du visage.', 'Tire vers le front en écartant les mains.', 'Pouces vers l\'arrière en fin de mouvement.'] },
+
+  // --- Épaules ---
+  { id: 'dev-militaire', name: 'Développé militaire debout (OHP)', group: 'epaules', load: 'charge', muscles: 'Épaules avant et moyennes, triceps',
+    cues: ['Fessiers et abdos serrés, pas de cambrure.', 'Passe la tête sous la barre en haut.', 'Barre au-dessus du milieu du pied.'] },
+  { id: 'dev-epaules-halteres', name: 'Développé épaules (haltères)', group: 'epaules', load: 'charge', muscles: 'Épaules, triceps',
+    cues: ['Assis dos calé ou debout gainé.', 'Haltères au niveau des oreilles au départ.', 'Pousse sans cogner les haltères.'] },
+  { id: 'elev-frontales', name: 'Élévations frontales', group: 'epaules', load: 'charge', muscles: 'Épaules avant',
+    cues: ['Monte les haltères jusqu\'à hauteur des yeux.', 'Marque une contraction de 2 s en haut.', 'Redescends lentement, sans élan.'] },
+  { id: 'elev-laterales', name: 'Élévations latérales', group: 'epaules', load: 'charge', muscles: 'Épaules moyennes',
+    cues: ['Coudes légèrement fléchis, buste un peu penché.', 'Monte les coudes jusqu\'à hauteur d\'épaule.', 'Petits doigts légèrement plus hauts que les pouces.'] },
+  { id: 'elev-laterales-poulie', name: 'Élévations latérales (poulie)', group: 'epaules', load: 'charge', muscles: 'Épaules moyennes',
+    cues: ['Câble qui passe devant ou derrière le corps.', 'Monte jusqu\'à hauteur d\'épaule.', 'Tension continue, pas de pause en bas.'] },
+  { id: 'oiseau-assis', name: 'Oiseau assis (prise neutre)', group: 'epaules', load: 'charge', muscles: 'Arrière d\'épaule, haut du dos',
+    cues: ['Assis, buste couché sur les cuisses.', 'Coudes perpendiculaires au corps.', 'Écarte jusqu\'à hauteur d\'épaule, sans balancer.'] },
+  { id: 'upright-row', name: 'Upright row (tirage menton)', group: 'epaules', load: 'charge', muscles: 'Épaules moyennes, trapèzes',
+    cues: ['Prise un peu plus large que les épaules.', 'Monte les coudes, pas les mains.', 'Arrête-toi à hauteur de poitrine si l\'épaule tire.'] },
+  { id: 'upright-row-penche', name: 'Upright row penché', group: 'epaules', load: 'charge', muscles: 'Arrière et milieu d\'épaule, haut du dos',
+    cues: ['Buste penché, dos plat, prise large.', 'Tire la barre vers le haut de la poitrine, coudes en dehors.', 'Contrôle le retour bras tendus.'] },
+
+  // --- Bras ---
+  { id: 'curl-incline', name: 'Curl incliné (haltères)', group: 'bras', load: 'charge', muscles: 'Biceps (longue portion)',
+    cues: ['Banc à 45-60°, bras pendants derrière le buste.', 'Fléchis sans avancer les coudes.', 'Descends jusqu\'à l\'étirement complet.'] },
+  { id: 'curl-barre', name: 'Curl barre', group: 'bras', load: 'charge', muscles: 'Biceps',
+    cues: ['Coudes collés au corps.', 'Monte sans balancer le buste.', 'Redescends en 2 s.'] },
+  { id: 'curl-marteau', name: 'Curl marteau', group: 'bras', load: 'charge', muscles: 'Brachial, avant-bras, biceps',
+    cues: ['Paumes face à face.', 'Monte l\'haltère vers l\'épaule.', 'Coudes fixes.'] },
+  { id: 'triceps-poulie', name: 'Extension triceps (poulie haute)', group: 'bras', load: 'charge', muscles: 'Triceps',
+    cues: ['Coudes collés aux côtes.', 'Tends complètement les bras.', 'Remonte jusqu\'à 90° sans bouger les coudes.'] },
+  { id: 'barre-front', name: 'Barre au front', group: 'bras', load: 'charge', muscles: 'Triceps',
+    cues: ['Allongé, barre au-dessus du front.', 'Fléchis seulement les coudes.', 'Tends sans écarter les coudes.'] },
+
+  // --- Jambes ---
+  { id: 'squat', name: 'Squat barre haute', group: 'jambes', load: 'charge', muscles: 'Quadriceps, fessiers, adducteurs',
+    cues: ['Barre sur les trapèzes, pieds largeur d\'épaules.', 'Descends hanches sous les genoux en gardant le buste droit.', 'Remonte en poussant le sol, genoux dans l\'axe des pieds.'] },
+  { id: 'hack-squat', name: 'Hack squat (machine)', group: 'jambes', load: 'charge', muscles: 'Quadriceps, fessiers',
+    cues: ['Dos bien calé, pieds au milieu de la plateforme.', 'Descends profond sans décoller les talons.', 'Ne verrouille pas les genoux en haut.'] },
+  { id: 'presse', name: 'Presse à cuisses', group: 'jambes', load: 'charge', muscles: 'Quadriceps, fessiers',
+    cues: ['Bas du dos collé au dossier.', 'Descends jusqu\'à 90° ou plus si le bassin ne bascule pas.', 'Pousse avec les talons.'] },
+  { id: 'goblet-squat', name: 'Goblet squat', group: 'jambes', load: 'charge', muscles: 'Quadriceps, fessiers',
+    cues: ['Haltère contre la poitrine.', 'Coudes entre les genoux en bas.', 'Buste droit tout du long.'] },
+  { id: 'souleve-terre', name: 'Soulevé de terre', group: 'jambes', load: 'charge', muscles: 'Chaîne postérieure, dos, fessiers',
+    cues: ['Barre au-dessus du milieu du pied, dos plat.', 'Pousse le sol et garde la barre contre les jambes.', 'Verrouille avec les fessiers, sans hyper-extension.'] },
+  { id: 'rdl', name: 'Soulevé de terre roumain (RDL)', group: 'jambes', load: 'charge', muscles: 'Ischio-jambiers, fessiers',
+    cues: ['Genoux légèrement fléchis et fixes.', 'Recule les hanches, barre le long des cuisses.', 'Descends jusqu\'à l\'étirement des ischios, dos plat.'] },
+  { id: 'sdt-jambes-tendues', name: 'Soulevé de terre jambes tendues', group: 'jambes', load: 'charge', muscles: 'Ischio-jambiers, fessiers, lombaires',
+    cues: ['Jambes presque tendues.', 'Charnière de hanche, dos plat.', 'Remonte en serrant les fessiers.'] },
+  { id: 'fentes', name: 'Fentes (haltères)', group: 'jambes', load: 'charge', muscles: 'Quadriceps, fessiers',
+    cues: ['Grand pas, genou arrière vers le sol.', 'Genou avant dans l\'axe du pied.', 'Pousse avec le talon avant.'] },
+  { id: 'split-squat', name: 'Split squat (haltères)', group: 'jambes', load: 'charge', muscles: 'Quadriceps, fessiers',
+    cues: ['Pieds fixes, écart d\'un grand pas.', 'Descends à la verticale.', 'Toutes les reps d\'une jambe puis l\'autre.'] },
+  { id: 'hip-thrust', name: 'Hip thrust', group: 'jambes', load: 'charge', muscles: 'Fessiers',
+    cues: ['Haut du dos sur le banc, barre sur les hanches.', 'Monte jusqu\'à l\'alignement genoux-hanches-épaules.', 'Menton rentré, contraction 1 s en haut.'] },
+  { id: 'leg-curl', name: 'Leg curl allongé', group: 'jambes', load: 'charge', muscles: 'Ischio-jambiers',
+    cues: ['Bassin plaqué contre le banc.', 'Ramène les talons vers les fesses.', 'Retour lent.'] },
+  { id: 'leg-curl-assis', name: 'Leg curl assis', group: 'jambes', load: 'charge', muscles: 'Ischio-jambiers',
+    cues: ['Cuisses bloquées par le boudin.', 'Fléchis complètement.', 'Retour lent jusqu\'à jambes presque tendues.'] },
+  { id: 'leg-extension', name: 'Leg extension', group: 'jambes', load: 'charge', muscles: 'Quadriceps',
+    cues: ['Axe de la machine aligné avec le genou.', 'Tends complètement, contraction 1 s.', 'Redescends en contrôle.'] },
+  { id: 'mollets-debout', name: 'Extensions mollets debout', group: 'jambes', load: 'charge', muscles: 'Mollets (gastrocnémiens)',
+    cues: ['Tempo 1-2-2-1 : monte 1 s, tiens 2 s, descends 2 s, étire 1 s.', 'Amplitude complète, talons sous la marche.', 'Genoux tendus mais pas verrouillés.'] },
+  { id: 'mollets-assis', name: 'Extensions mollets assis', group: 'jambes', load: 'charge', muscles: 'Mollets (soléaire)',
+    cues: ['Genoux à 90°.', 'Étire en bas, contraction en haut.', 'Pas de rebond.'] },
+
+  // --- Abdos / complet ---
+  { id: 'releve-jambes', name: 'Relevés de jambes suspendu', group: 'abdos', load: 'pdc', muscles: 'Abdominaux, fléchisseurs de hanche',
+    cues: ['Suspendu, épaules engagées.', 'Enroule le bassin en montant les jambes.', 'Descends sans balancer.'] },
+  { id: 'gainage', name: 'Gainage (planche)', group: 'abdos', load: 'pdc', muscles: 'Sangle abdominale',
+    cues: ['Coudes sous les épaules.', 'Fessiers et abdos serrés, bassin neutre.', 'Respire sans relâcher.'] },
+  { id: 'roue-abdos', name: 'Roue abdominale', group: 'abdos', load: 'pdc', muscles: 'Abdominaux, gainage',
+    cues: ['Dos arrondi, bassin rétroversé.', 'Avance tant que le bas du dos ne se creuse pas.', 'Reviens en contractant les abdos.'] },
+  { id: 'crunch-poulie', name: 'Crunch à la poulie', group: 'abdos', load: 'charge', muscles: 'Grand droit',
+    cues: ['À genoux, corde derrière la tête.', 'Enroule le buste vers les cuisses.', 'Les hanches restent fixes.'] },
+  { id: 'farmer-walk', name: 'Farmer walk', group: 'complet', load: 'charge', muscles: 'Avant-bras, trapèzes, gainage',
+    cues: ['Charges lourdes de chaque côté.', 'Marche à petits pas rapides, buste droit.', 'Épaules basses, regard devant.'] }
+];
+
+window.FD_EXERCISE_GROUPS = [
+  ['pecs', 'Pectoraux'], ['dos', 'Dos'], ['epaules', 'Épaules'], ['bras', 'Bras'], ['jambes', 'Jambes'], ['abdos', 'Abdos'], ['complet', 'Complet']
+];

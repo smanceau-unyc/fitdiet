@@ -200,6 +200,7 @@
           '<div class="divider grid-2">' + meter('Pas', d.steps || 0, S.profile.stepsGoal, '') + meter('Eau (repère)', d.water || 0, tg.water, 'L', 'p', 1) + '</div>' +
         '</section>' +
       '</div>' +
+      FD.trainingView.todayCard() +
 
       '<form class="card" data-form="quick" aria-label="Saisie rapide"><div class="card-head"><h2>Saisie rapide</h2><span class="muted small">Pèse-toi le matin, à jeun, après être passé aux toilettes.</span></div>' +
         '<div class="form-grid"><label>Poids (kg)<input type="text" inputmode="decimal" name="weight" value="' + (d.weight !== undefined ? U.num(d.weight, 1) : '') + '"></label>' +
@@ -960,6 +961,34 @@
   /* Plan alimentaire                                                     */
   /* ------------------------------------------------------------------ */
 
+  /* ---------------- Menus du livre (journées types importées) ---------------- */
+  function importMenus(data) {
+    if (!data || !Array.isArray(data.menus)) return 0;
+    const ids = new Set(data.menus.map((m) => m.id));
+    S.menus = (S.menus || []).filter((m) => !ids.has(m.id)).concat(JSON.parse(JSON.stringify(data.menus)));
+    return data.menus.length;
+  }
+  function menuTotals(m) {
+    const t = { kcal: 0, p: 0, g: 0, l: 0 };
+    m.items.forEach((it) => { const r = R.byId(S, it.recipeId); if (r) { const v = R.perPortion(S, r); ['kcal', 'p', 'g', 'l'].forEach((k) => { t[k] += v[k] || 0; }); } });
+    return t;
+  }
+  function menusHTML() {
+    const menus = S.menus || [];
+    if (!menus.length) return '';
+    const iso = ui.menuDate || today();
+    const tg = C.dayTarget(S, iso);
+    return '<section class="card"><div class="card-head"><h2>Menus du livre</h2><label class="inline small" style="gap:8px">Pour le<input type="date" value="' + iso + '" data-change="menu-date" style="width:auto"></label></div>' +
+      '<p class="small muted">Journées complètes à ajouter d\'un coup au journal. Cible de ce jour : ' + U.kcal(tg.kcal) + ' kcal, P ' + tg.p + ' g, L ' + Math.round(tg.l) + ' g.</p>' +
+      '<div class="menu-grid">' + menus.map((m) => {
+        const t = menuTotals(m), over = t.kcal > tg.kcal * 1.05, fatOver = t.l > tg.l * 1.15;
+        return '<div class="menu-card"><div class="between"><strong>' + esc(m.name) + '</strong><span class="badge' + (over ? ' warn' : ' ok') + '">' + U.kcal(t.kcal) + ' kcal</span></div>' +
+          '<span class="small muted">P ' + U.num(t.p) + ' g · G ' + U.num(t.g) + ' g · L ' + U.num(t.l) + ' g' + (fatOver ? ' <span class="accent">(lipides au-dessus de ta cible)</span>' : '') + '</span>' +
+          '<ul class="small menu-items">' + m.items.map((it) => { const r = R.byId(S, it.recipeId); return '<li><span class="muted">' + esc(MEAL_LABEL[it.meal] || it.meal) + '</span> ' + (r ? '<a href="#/recettes" data-action="r-open" data-id="' + esc(r.id) + '" data-go="recettes">' + esc(r.name) + '</a>' : '<em>recette manquante</em>') + '</li>'; }).join('') + '</ul>' +
+          '<div><button class="btn sm' + (over ? '' : ' primary') + '" data-action="menu-log" data-id="' + esc(m.id) + '">Ajouter au journal</button></div></div>';
+      }).join('') + '</div></section>';
+  }
+
   function vPlan() {
     const st = S.planSettings || FD.planner.defaultSettings(S);
     const recOpts = (meal) => [['', 'Varier']].concat(R.all(S).filter((r) => r.meals.includes(meal)).map((r) => [r.id, r.name]));
@@ -1000,6 +1029,7 @@
       '<div class="inline"><button class="btn primary" type="submit">' + (plan ? 'Régénérer le plan' : 'Générer le plan') + '</button>' + (plan ? '<button type="button" class="btn ghost danger" data-action="plan-clear">Supprimer le plan</button>' : '') + '</div></form>' +
       (plan ? (function () { const pc = FD.prices.planCost(S, plan); const wb = FD.prices.weeklyBudget(S); const b = wb ? wb * plan.days.length / 7 : null;
         return '<section class="card tight"><p>Coût estimé du plan : <strong>≈ ' + U.num(pc.total, 2) + ' €</strong>' + (b ? ' pour un budget de ' + U.num(b, 0) + ' € sur ' + plan.days.length + ' jour(s)' + (pc.total > b * 1.05 ? ' — au-dessus : passe le budget sur « Économique » ou ajuste tes prix.' : ' — dans le budget.') : ' (renseigne un budget hebdomadaire dans ton profil pour le comparer).') + '</p><p class="small muted">Coût proratisé à la quantité consommée, à partir de tes prix ou de prix indicatifs.</p></section>'; })() : '') +
+      menusHTML() +
       (body || '<section class="card dashed"><p>Choisis une durée puis génère ton plan : chaque repas sera calibré sur la cible de ta séance du jour.</p></section>') +
       legal + '</div>';
   }
@@ -1168,7 +1198,7 @@
   /* Routeur                                                              */
   /* ------------------------------------------------------------------ */
 
-  const VIEWS = { tableau: vTableau, journal: vJournal, macros: vMacros, plan: vPlan, recettes: vRecettes, courses: vCourses, semaine: vSemaine, suivi: vSuivi, coach: vCoach, profil: vProfil, parametres: vParametres };
+  const VIEWS = { tableau: vTableau, seances: () => FD.trainingView.view(), journal: vJournal, macros: vMacros, plan: vPlan, recettes: vRecettes, courses: vCourses, semaine: vSemaine, suivi: vSuivi, coach: vCoach, profil: vProfil, parametres: vParametres };
 
   function currentRoute() {
     const r = (location.hash || '#/tableau').replace('#/', '');
@@ -1413,6 +1443,19 @@
         d.meals.forEach((m) => logIngredients(d.iso, m.meal, m.ingredients, R.byId(S, m.recipeId), 'portion du plan')); commit('Journée du ' + U.frShort(d.iso) + ' ajoutée au journal.');
         break;
       }
+      case 'menu-log': {
+        const m = (S.menus || []).find((x) => x.id === el.dataset.id);
+        if (!m) break;
+        const iso = ui.menuDate || today();
+        let n = 0;
+        m.items.forEach((it) => {
+          const r = R.byId(S, it.recipeId); if (!r) return;
+          const ings = r.ingredients.map((i) => Object.assign({}, i, { qty: R.roundQty(i.qty / r.servings, i.unit, F.byId(S, i.foodId)) }));
+          logIngredients(iso, it.meal, ings, r, 'menu du livre'); n++;
+        });
+        commit(m.name + ' ajouté au journal du ' + U.frShort(iso) + ' (' + n + ' repas).');
+        break;
+      }
       case 'plan-clear': if (!confirm('Supprimer le plan ?')) break; S.plan = null; S.shopping.checked = {}; commit('Plan supprimé.'); break;
 
       // --- Courses ---
@@ -1570,13 +1613,16 @@
         })();
         break;
       }
+      case 'menu-date': ui.menuDate = el.value || today(); render(); break;
       case 'r-import': {
         const file = el.files && el.files[0];
         if (!file) break;
         file.text().then((t) => {
-          const res = R.importCollection(S, JSON.parse(t));
+          const data = JSON.parse(t);
+          const res = R.importCollection(S, data);
           if (res.collection) ui.rCollection = res.collection;
-          commit(res.recipes + ' recettes importées' + (res.missing.length ? ' (' + res.missing.length + ' ingrédient(s) introuvable(s))' : '') + '.');
+          const nm = importMenus(data), tw = FD.training.importWorkouts(S, data);
+          commit(res.recipes + ' recettes importées' + (nm ? ', ' + nm + ' menus' : '') + (tw.workouts ? ', ' + tw.workouts + ' séances' : '') + (res.missing.length ? ' (' + res.missing.length + ' ingrédient(s) introuvable(s))' : '') + '.');
         }).catch((e) => toast(e.message || 'Import impossible.'));
         break;
       }
@@ -1899,6 +1945,10 @@
   window.addEventListener('hashchange', () => { render(); document.getElementById('view').focus({ preventScroll: true }); window.scrollTo({ top: 0 }); });
   let rt;
   window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (ui.route === 'suivi') drawSuivi(); }, 150); });
+
+  // Points d'accès pour les modules d'interface séparés (Séances)
+  FD.app = { state: () => S, save, commit, render, toast, importMenus };
+  FD.trainingView.bind(view);
 
   applyTheme();
   render();

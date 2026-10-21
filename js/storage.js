@@ -68,6 +68,9 @@ FD.storage = (function () {
       foodLinks: {},     // id aliment démo -> id aliment Ciqual dont il prend les valeurs
       recipes: [],       // recettes saisies par l'utilisateur
       favorites: {},     // id recette -> true (recettes favorites)
+      menus: [],         // journées types importées (menus d'un livre) : { id, name, items: [{ meal, recipeId }] }
+      mobility: { week: Object.assign({}, (window.FD_MOBILITY || {}).week || {}), logs: {} }, // programme mobilité (js/mobility.js)
+      training: { workouts: [], week: {}, logs: {}, customExercises: [] }, // séances, semaine, carnet de charges (js/training.js)
       plan: null,        // plan alimentaire généré
       planSettings: null,
       shopping: { checked: {} },
